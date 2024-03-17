@@ -1,11 +1,17 @@
 import yaml
 import pandas as pd
 from pathlib import Path
+from datetime import datetime, timedelta, timezone  # Add this line
 
 
 def load_config(config_path):
     with open(config_path, "r") as stream:
         return yaml.safe_load(stream)
+
+
+def get_timestamp():
+    # 日本時間をyyyymmddhhmmss形式で返す
+    return datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d-%H-%M-%S")
 
 
 def log(data: dict, path: Path | str) -> None:
