@@ -12,6 +12,7 @@ import torch.utils.data
 import torch.utils.data.distributed
 from torchvision import datasets, transforms
 from model import Net
+import utils
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -93,8 +94,13 @@ def train(args):
                         loss.item(),
                     )
                 )
-        test(model, test_loader, args.device)
-    save_model(model, args.model_dir)
+        test_loss, accuracy = test(model, test_loader, args.device)
+        save_model(model, args.out_dir, args.device, "model_epoch_{}.pth".format(epoch))
+        utils.log(
+            {"epoch": epoch, "test_loss": test_loss, "accuracy": accuracy},
+            os.path.join(args.out_dir, "metrics.csv"),
+        )
+    save_model(model, args.model_dir, args.device, "model_last.pth")
 
 
 def test(model, test_loader, device):
@@ -114,21 +120,24 @@ def test(model, test_loader, device):
             correct += pred.eq(target.view_as(pred)).sum().item()
 
     test_loss /= len(test_loader.dataset)
+    accuracy = correct / len(test_loader.dataset)
     logger.info(
         "Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n".format(
             test_loss,
             correct,
             len(test_loader.dataset),
-            100.0 * correct / len(test_loader.dataset),
+            100.0 * accuracy,
         )
     )
+    return test_loss, accuracy
 
 
-def save_model(model, model_dir):
+def save_model(model, model_dir, device, model_name="model.pth"):
     logger.info("Saving the model.")
-    path = os.path.join(model_dir, "model.pth")
+    path = os.path.join(model_dir, model_name)
     # recommended way from http://pytorch.org/docs/master/notes/serialization.html
     torch.save(model.cpu().state_dict(), path)
+    model.to(args.device)
 
 
 def get_args():
@@ -185,12 +194,6 @@ def get_args():
         help="how many batches to wait before logging training status",
     )
     parser.add_argument(
-        "--backend",
-        type=str,
-        default=None,
-        help="backend for distributed training (tcp, gloo on cpu and gloo, nccl on gpu)",
-    )
-    parser.add_argument(
         "--num-workers",
         type=int,
         default=os.cpu_count(),
@@ -212,9 +215,6 @@ def get_args():
         type=str,
         default=os.environ["SM_OUTPUT_DATA_DIR"],
     )
-    # parser.add_argument("--num-gpus", type=int, default=os.environ["SM_NUM_GPUS"])
-    # parser.add_argument("--hosts", type=list, default=json.loads(os.environ["SM_HOSTS"]))
-    # parser.add_argument("--current-host", type=str, default=os.environ["SM_CURRENT_HOST"])
     return parser.parse_args()
 
 
