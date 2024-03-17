@@ -14,7 +14,7 @@ from torchvision import datasets, transforms
 from model import Net
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
@@ -41,7 +41,7 @@ def prepare_dataloader(args):
     test_loader = _get_data_loader(
         args.test_batch_size, args.data_dir, "test.pt", **kwargs
     )
-    logger.debug(
+    logger.info(
         "Processes {}/{} ({:.0f}%) of train data".format(
             len(train_loader.sampler),
             len(train_loader.dataset),
@@ -49,7 +49,7 @@ def prepare_dataloader(args):
         )
     )
 
-    logger.debug(
+    logger.info(
         "Processes {}/{} ({:.0f}%) of test data".format(
             len(test_loader.sampler),
             len(test_loader.dataset),
@@ -175,7 +175,7 @@ def get_args():
         type=int,
         default=42,
         metavar="S",
-        help="random seed (default: 1)",
+        help="random seed (default: 42)",
     )
     parser.add_argument(
         "--log-interval",
