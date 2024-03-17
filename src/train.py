@@ -1,16 +1,16 @@
 import argparse
-import json
 import logging
 import os
 import sys
 
 import torch
-import torch.distributed as dist
 import torch.nn.functional as F
 import torch.optim as optim
 import torch.utils.data
 import torch.utils.data.distributed
-from torchvision import datasets, transforms
+from sagemaker.experiments import load_run
+
+import utils
 from model import Net
 
 logger = logging.getLogger(__name__)
@@ -59,7 +59,7 @@ def prepare_dataloader(args):
     return train_loader, test_loader
 
 
-def train(args):
+def train(args, run=None):
     # set the device to be used for training
     args.use_cuda = torch.cuda.is_available()
     args.device = torch.device("cuda" if args.use_cuda else "cpu")
@@ -93,11 +93,12 @@ def train(args):
                         loss.item(),
                     )
                 )
-        test(model, test_loader, args.device)
-    save_model(model, args.model_dir)
+        test(model, test_loader, args.device, epoch, run)
+        save_model(model, args.out_dir, args.device, "model_epoch_{}.pth".format(epoch))
+    save_model(model, args.model_dir, args.device, "model_last.pth")
 
 
-def test(model, test_loader, device):
+def test(model, test_loader, device, epoch, run=None):
     model.eval()
     test_loss = 0
     correct = 0
@@ -105,30 +106,42 @@ def test(model, test_loader, device):
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
             output = model(data)
-            test_loss += F.nll_loss(
-                output, target, size_average=False
-            ).item()  # sum up batch loss
-            pred = output.max(1, keepdim=True)[
-                1
-            ]  # get the index of the max log-probability
+            # sum up batch loss
+            test_loss += F.nll_loss(output, target, reduction="sum").item()
+            # get the index of the max log-probability
+            pred = output.max(1, keepdim=True)[1]
             correct += pred.eq(target.view_as(pred)).sum().item()
+            if run:
+                run.log_confusion_matrix(
+                    target.cpu(), pred.cpu(), "Confusion-Matrix-Test-Data"
+                )
 
     test_loss /= len(test_loader.dataset)
+    accuracy = correct / len(test_loader.dataset)
     logger.info(
         "Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n".format(
             test_loss,
             correct,
             len(test_loader.dataset),
-            100.0 * correct / len(test_loader.dataset),
+            100.0 * accuracy,
         )
     )
+    if run:
+        run.log_metric(name="test:loss", value=test_loss, step=epoch)
+        run.log_metric(name="test:accuracy", value=accuracy, step=epoch)
+    else:
+        utils.log(
+            {"epoch": epoch, "test_loss": test_loss, "accuracy": accuracy},
+            os.path.join(args.out_dir, "metrics.csv"),
+        )
 
 
-def save_model(model, model_dir):
+def save_model(model, model_dir, device, model_name="model.pth"):
     logger.info("Saving the model.")
-    path = os.path.join(model_dir, "model.pth")
+    path = os.path.join(model_dir, model_name)
     # recommended way from http://pytorch.org/docs/master/notes/serialization.html
     torch.save(model.cpu().state_dict(), path)
+    model.to(args.device)
 
 
 def get_args():
@@ -185,12 +198,6 @@ def get_args():
         help="how many batches to wait before logging training status",
     )
     parser.add_argument(
-        "--backend",
-        type=str,
-        default=None,
-        help="backend for distributed training (tcp, gloo on cpu and gloo, nccl on gpu)",
-    )
-    parser.add_argument(
         "--num-workers",
         type=int,
         default=os.cpu_count(),
@@ -212,12 +219,28 @@ def get_args():
         type=str,
         default=os.environ["SM_OUTPUT_DATA_DIR"],
     )
-    # parser.add_argument("--num-gpus", type=int, default=os.environ["SM_NUM_GPUS"])
-    # parser.add_argument("--hosts", type=list, default=json.loads(os.environ["SM_HOSTS"]))
-    # parser.add_argument("--current-host", type=str, default=os.environ["SM_CURRENT_HOST"])
+
+    # Sagemaker Experiments
+    parser.add_argument(
+        "--exp-name",
+        type=str,
+        default=None,
+        help="experiment name",
+    )
+    parser.add_argument(
+        "--run-name",
+        type=str,
+        default=None,
+        help="run name",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = get_args()
-    train(args)
+    if args.run_name is None and args.exp_name is None:
+        run = None
+        train(args, run)
+    else:
+        with load_run(experiment_name=args.exp_name, run_name=args.run_name) as run:
+            train(args, run)
