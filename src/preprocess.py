@@ -1,7 +1,8 @@
-from torchvision import datasets, transforms
-from torch.utils.data import DataLoader
-import torch
 import os
+
+import torch
+from torch.utils.data import DataLoader
+from torchvision import datasets, transforms
 
 RAW_DATA_DIR = "/app/sm-train/rawdata"
 TRAIN_DIR_NAME = "mnist_png/training"
