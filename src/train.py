@@ -10,9 +10,9 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.utils.data
 import torch.utils.data.distributed
-from torchvision import datasets, transforms
-from model import Net
 import utils
+from model import Net
+from sagemaker.experiments import load_run
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -60,7 +60,7 @@ def prepare_dataloader(args):
     return train_loader, test_loader
 
 
-def train(args):
+def train(args, run=None):
     # set the device to be used for training
     args.use_cuda = torch.cuda.is_available()
     args.device = torch.device("cuda" if args.use_cuda else "cpu")
@@ -94,16 +94,12 @@ def train(args):
                         loss.item(),
                     )
                 )
-        test_loss, accuracy = test(model, test_loader, args.device)
+        test(model, test_loader, args.device, epoch, run)
         save_model(model, args.out_dir, args.device, "model_epoch_{}.pth".format(epoch))
-        utils.log(
-            {"epoch": epoch, "test_loss": test_loss, "accuracy": accuracy},
-            os.path.join(args.out_dir, "metrics.csv"),
-        )
     save_model(model, args.model_dir, args.device, "model_last.pth")
 
 
-def test(model, test_loader, device):
+def test(model, test_loader, device, epoch, run=None):
     model.eval()
     test_loss = 0
     correct = 0
@@ -118,6 +114,10 @@ def test(model, test_loader, device):
                 1
             ]  # get the index of the max log-probability
             correct += pred.eq(target.view_as(pred)).sum().item()
+            # if run:
+            run.log_confusion_matrix(
+                target.cpu(), pred.cpu(), "Confusion-Matrix-Test-Data"
+            )
 
     test_loss /= len(test_loader.dataset)
     accuracy = correct / len(test_loader.dataset)
@@ -129,7 +129,14 @@ def test(model, test_loader, device):
             100.0 * accuracy,
         )
     )
-    return test_loss, accuracy
+    if run:
+        run.log_metric(name="test:loss", value=test_loss, step=epoch)
+        run.log_metric(name="test:accuracy", value=accuracy, step=epoch)
+    else:
+        utils.log(
+            {"epoch": epoch, "test_loss": test_loss, "accuracy": accuracy},
+            os.path.join(args.out_dir, "metrics.csv"),
+        )
 
 
 def save_model(model, model_dir, device, model_name="model.pth"):
@@ -215,9 +222,30 @@ def get_args():
         type=str,
         default=os.environ["SM_OUTPUT_DATA_DIR"],
     )
+
+    # Sagemaker Experiments
+    parser.add_argument(
+        "--experiment-name",
+        type=str,
+        default=None,
+        help="experiment name",
+    )
+    parser.add_argument(
+        "--run-name",
+        type=str,
+        default=None,
+        help="run name",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = get_args()
-    train(args)
+    if args.run_name is None and args.experiment_name is None:
+        run = None
+        train(args, run)
+    else:
+        with load_run(
+            experiment_name=args.experiment_name, run_name=args.run_name
+        ) as run:
+            train(args, run)
