@@ -19,59 +19,28 @@ logger.addHandler(logging.StreamHandler(sys.stdout))
 
 
 # Based on https://github.com/pytorch/examples/blob/master/mnist/main.py
-
-
-def _get_train_data_loader(batch_size, training_dir, is_distributed, **kwargs):
-    logger.info("Get train data loader")
-    train_tensor = torch.load(os.path.join(training_dir, "training.pt"))
-    dataset = torch.utils.data.TensorDataset(train_tensor[0], train_tensor[1])
-    train_sampler = (
-        torch.utils.data.distributed.DistributedSampler(dataset)
-        if is_distributed
-        else None
-    )
+def _get_data_loader(batch_size, dir, data_name, **kwargs):
+    logger.info("Get test data loader")
+    data_tensor = torch.load(os.path.join(dir, data_name))
+    dataset = torch.utils.data.TensorDataset(data_tensor[0], data_tensor[1])
     return torch.utils.data.DataLoader(
         dataset,
         batch_size=batch_size,
-        shuffle=train_sampler is None,
-        sampler=train_sampler,
-        **kwargs
+        shuffle=True,
+        **kwargs,
     )
 
 
-def _get_test_data_loader(test_batch_size, training_dir, **kwargs):
-    logger.info("Get test data loader")
-    test_tensor = torch.load(os.path.join(training_dir, "test.pt"))
-    dataset = torch.utils.data.TensorDataset(test_tensor[0], test_tensor[1])
-    return torch.utils.data.DataLoader(
-        dataset, batch_size=test_batch_size, shuffle=True, **kwargs
+def prepare_dataloader(args):
+    kwargs = (
+        {"num_workers": args.num_workers, "pin_memory": True} if args.use_cuda else {}
     )
-
-
-def _average_gradients(model):
-    # Gradient averaging.
-    size = float(dist.get_world_size())
-    for param in model.parameters():
-        dist.all_reduce(param.grad.data, op=dist.reduce_op.SUM)
-        param.grad.data /= size
-
-
-def train(args):
-    is_distributed = False
-    use_cuda = torch.cuda.is_available()
-    kwargs = {"num_workers": args.num_workers, "pin_memory": True} if use_cuda else {}
-    device = torch.device("cuda" if use_cuda else "cpu")
-
-    # set the seed for generating random numbers
-    torch.manual_seed(args.seed)
-    if use_cuda:
-        torch.cuda.manual_seed(args.seed)
-
-    train_loader = _get_train_data_loader(
-        args.batch_size, args.data_dir, is_distributed, **kwargs
+    train_loader = _get_data_loader(
+        args.batch_size, args.data_dir, "training.pt", **kwargs
     )
-    test_loader = _get_test_data_loader(args.test_batch_size, args.data_dir, **kwargs)
-
+    test_loader = _get_data_loader(
+        args.test_batch_size, args.data_dir, "test.pt", **kwargs
+    )
     logger.debug(
         "Processes {}/{} ({:.0f}%) of train data".format(
             len(train_loader.sampler),
@@ -87,25 +56,32 @@ def train(args):
             100.0 * len(test_loader.sampler) / len(test_loader.dataset),
         )
     )
+    return train_loader, test_loader
 
-    model = Net().to(device)
 
-    # single-machine multi-gpu case or single-machine or multi-machine cpu case
-    model = torch.nn.DataParallel(model)
+def train(args):
+    # set the device to be used for training
+    args.use_cuda = torch.cuda.is_available()
+    args.device = torch.device("cuda" if args.use_cuda else "cpu")
 
+    # set the seed for generating random numbers
+    torch.manual_seed(args.seed)
+    if args.use_cuda:
+        torch.cuda.manual_seed(args.seed)
+
+    # set the loader, model, and optimizer
+    train_loader, test_loader = prepare_dataloader(args)
+    model = Net().to(args.device)
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
 
     for epoch in range(1, args.epochs + 1):
         model.train()
         for batch_idx, (data, target) in enumerate(train_loader, 1):
-            data, target = data.to(device), target.to(device)
+            data, target = data.to(args.device), target.to(args.device)
             optimizer.zero_grad()
             output = model(data)
             loss = F.nll_loss(output, target)
             loss.backward()
-            if is_distributed and not use_cuda:
-                # average gradients manually for multi-machine cpu case only
-                _average_gradients(model)
             optimizer.step()
             if batch_idx % args.log_interval == 0:
                 logger.info(
@@ -117,7 +93,7 @@ def train(args):
                         loss.item(),
                     )
                 )
-        test(model, test_loader, device)
+        test(model, test_loader, args.device)
     save_model(model, args.model_dir)
 
 
@@ -146,14 +122,6 @@ def test(model, test_loader, device):
             100.0 * correct / len(test_loader.dataset),
         )
     )
-
-
-def model_fn(model_dir):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = torch.nn.DataParallel(Net())
-    with open(os.path.join(model_dir, "model.pth"), "rb") as f:
-        model.load_state_dict(torch.load(f))
-    return model.to(device)
 
 
 def save_model(model, model_dir):
@@ -203,7 +171,11 @@ def get_args():
         help="SGD momentum (default: 0.5)",
     )
     parser.add_argument(
-        "--seed", type=int, default=1, metavar="S", help="random seed (default: 1)"
+        "--seed",
+        type=int,
+        default=42,
+        metavar="S",
+        help="random seed (default: 1)",
     )
     parser.add_argument(
         "--log-interval",
@@ -246,10 +218,6 @@ def get_args():
     return parser.parse_args()
 
 
-def main(args):
-    train(args)
-
-
 if __name__ == "__main__":
     args = get_args()
-    main(args)
+    train(args)
