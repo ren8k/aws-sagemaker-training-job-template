@@ -1,18 +1,17 @@
 import argparse
-import json
 import logging
 import os
 import sys
 
 import torch
-import torch.distributed as dist
 import torch.nn.functional as F
 import torch.optim as optim
 import torch.utils.data
 import torch.utils.data.distributed
+from sagemaker.experiments import load_run
+
 import utils
 from model import Net
-from sagemaker.experiments import load_run
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -107,17 +106,15 @@ def test(model, test_loader, device, epoch, run=None):
         for data, target in test_loader:
             data, target = data.to(device), target.to(device)
             output = model(data)
-            test_loss += F.nll_loss(
-                output, target, size_average=False
-            ).item()  # sum up batch loss
-            pred = output.max(1, keepdim=True)[
-                1
-            ]  # get the index of the max log-probability
+            # sum up batch loss
+            test_loss += F.nll_loss(output, target, reduction="sum").item()
+            # get the index of the max log-probability
+            pred = output.max(1, keepdim=True)[1]
             correct += pred.eq(target.view_as(pred)).sum().item()
-            # if run:
-            run.log_confusion_matrix(
-                target.cpu(), pred.cpu(), "Confusion-Matrix-Test-Data"
-            )
+            if run:
+                run.log_confusion_matrix(
+                    target.cpu(), pred.cpu(), "Confusion-Matrix-Test-Data"
+                )
 
     test_loss /= len(test_loader.dataset)
     accuracy = correct / len(test_loader.dataset)
@@ -225,7 +222,7 @@ def get_args():
 
     # Sagemaker Experiments
     parser.add_argument(
-        "--experiment-name",
+        "--exp-name",
         type=str,
         default=None,
         help="experiment name",
@@ -241,11 +238,9 @@ def get_args():
 
 if __name__ == "__main__":
     args = get_args()
-    if args.run_name is None and args.experiment_name is None:
+    if args.run_name is None and args.exp_name is None:
         run = None
         train(args, run)
     else:
-        with load_run(
-            experiment_name=args.experiment_name, run_name=args.run_name
-        ) as run:
+        with load_run(experiment_name=args.exp_name, run_name=args.run_name) as run:
             train(args, run)
