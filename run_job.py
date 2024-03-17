@@ -1,11 +1,12 @@
-import sagemaker
 import argparse
+import os
+
+import sagemaker
+from sagemaker.experiments.run import Run
 from sagemaker.pytorch import PyTorch
 from sagemaker.session import Session
-from sagemaker.experiments.run import Run
-import os
-import src.utils
 
+import src.utils
 
 DATASET_S3_URI = "s3://sm-train-1710652103"
 REGION = "ap-northeast-1"
@@ -29,7 +30,7 @@ class Experiment:
         self.run_name = f"run-{TIMESTAMP}"
 
         # add sm exp settings to hyperparameters
-        self.hp["experiment-name"] = self.exp_name
+        self.hp["exp-name"] = self.exp_name
         self.hp["run-name"] = self.run_name
 
     def run(self):
