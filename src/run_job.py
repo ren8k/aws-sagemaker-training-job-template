@@ -8,25 +8,21 @@ from sagemaker.session import Session
 
 import utils
 
-DATASET_S3_URI = "s3://sm-train-1710652103"
-REGION = "ap-northeast-1"
-INSTANCE_TYPE = "ml.g4dn.xlarge"
 TIMESTAMP = utils.get_timestamp()
-EXP_NAME = "mnist"
 
 
 class Experiment:
     def __init__(self, args) -> None:
-        self.region = REGION
+        self.region = args.region
         os.environ["AWS_DEFAULT_REGION"] = self.region
         self.session = sagemaker.Session()
         self.role = sagemaker.get_execution_role()
-
-        self.instance_type = INSTANCE_TYPE
-        self.exp_name = EXP_NAME
+        self.dataset_uri = args.dataset_uri
+        self.instance_type = args.instance_type
 
         # load hyperparameters from config file and add sm exp settings
         self.hp = utils.load_config(args.config)
+        self.exp_name = args.exp_name
         self.conf_name = os.path.basename(args.config).split(".")[0]
         self.job_name = f"{self.exp_name}-{self.conf_name}-{TIMESTAMP}"
         self.run_name = f"run-{TIMESTAMP}"
@@ -48,15 +44,27 @@ class Experiment:
             base_job_name=self.job_name,
             environment={"AWS_DEFAULT_REGION": self.region},
             keep_alive_period_in_seconds=1800,
+            # Spot instance settings. Spot training job can't retain cluster.
+            # If you want to use spot instances, you have to remove the `keep_alive_period_in_seconds` parameter.
+            # use_spot_instances=True,
+            # max_run=20000,
+            # max_wait=20000,
         )
 
-        estimator.fit({"training": DATASET_S3_URI})
+        estimator.fit({"training": self.dataset_uri})
 
 
 def get_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--config", type=str, required=True, help="Path to the config")
+    parser.add_argument("--dataset-uri", type=str, required=True, help="Dataset S3 URI")
+    parser.add_argument("--exp-name", type=str, required=True, help="Experiment name")
     parser.add_argument(
-        "--config", type=str, required=True, help="Path to the config file"
+        "--instance-type", type=str, default="ml.g4dn.xlarge", help="InstanceType"
+    )
+
+    parser.add_argument(
+        "--region", type=str, default="ap-northeast-1", help="region name"
     )
     return parser.parse_args()
 
