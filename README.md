@@ -40,6 +40,15 @@ with load_run(sagemaker_session=session) as run:
 
 - warm pool の開放（申請すること）
 
+## 使い方
+
+- s3 に学習データを upload
+- src ディレクトリ内に実行したいコードを格納
+  - コード名は`train.py`を想定している
+  - 依存関係があるコードもまとめて格納
+  - lib も追加で入れたければ requirements.txt に追記
+- run_job.sh を実行
+
 ## reference
 
 ### sagemaker experiments
