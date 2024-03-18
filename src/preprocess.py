@@ -4,10 +4,10 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
-RAW_DATA_DIR = "/app/sm-train/rawdata"
+RAW_DATA_DIR = "../rawdata"
 TRAIN_DIR_NAME = "mnist_png/training"
 TEST_DIR_NAME = "mnist_png/testing"
-OUTPUT_DIR = "/app/sm-train/dataset"
+OUTPUT_DIR = "../dataset"
 
 
 def preprocess(data_dir):
