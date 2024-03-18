@@ -14,6 +14,7 @@ TIMESTAMP = utils.get_timestamp()
 
 class Experiment:
     def __init__(self, args) -> None:
+        self.time_stamp = utils.get_timestamp()
         self.region = args.region
         os.environ["AWS_DEFAULT_REGION"] = self.region
         self.session = sagemaker.Session()
@@ -34,8 +35,8 @@ class Experiment:
         self.hp = utils.load_config(args.config)
         self.exp_name = args.exp_name
         self.conf_name = os.path.basename(args.config).split(".")[0]
-        self.job_name = f"{self.exp_name}-{self.conf_name}-{TIMESTAMP}"
-        self.run_name = f"run-{TIMESTAMP}"
+        self.job_name = f"{self.exp_name}-{self.conf_name}-{self.time_stamp}"
+        self.run_name = f"run-{self.time_stamp}"
 
         # add sm exp settings to hyperparameters
         self.hp["exp-name"] = self.exp_name
@@ -65,7 +66,29 @@ class Experiment:
             **self.kwargs,
         )
 
-        estimator.fit({"training": self.dataset_uri})
+        estimator.fit(
+            inputs={"training": self.dataset_uri},
+            wait=True,
+            job_name=self.job_name,
+        )
+        return estimator
+
+    def download_model(self, estimator, output_dir):
+        model_uri = estimator.latest_training_job.describe()["ModelArtifacts"][
+            "S3ModelArtifacts"
+        ]
+        save_dir = os.path.join(output_dir, self.time_stamp)
+        utils.make_dir(save_dir)
+        save_path = os.path.join(save_dir, "model.tar.gz")
+        utils.download_from_s3(model_uri, save_path)
+        log_data = {
+            "model_uri": model_uri,
+            "job_name": self.job_name,
+        }
+        log_path = os.path.join(save_dir, "log.csv")
+        utils.log(log_data, log_path)
+
+        os.system(f"tar -zxvf {save_path} -C {save_dir}")
 
 
 def get_args():
@@ -83,6 +106,12 @@ def get_args():
         "--entry-point", type=str, default="train.py", help="entry point"
     )
     parser.add_argument("--use-spot", action="store_true", help="Use spot instances")
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default="./output/model",
+        help="Output directory for the model",
+    )
     return parser.parse_args()
 
 
@@ -93,7 +122,9 @@ def main(args):
         sagemaker_session=exp.session,
         run_name=exp.run_name,
     ) as run:
-        exp.run()
+        estimator = exp.run()
+        exp.download_model(estimator, args.output_dir)
+        print("Finish training job")
 
 
 if __name__ == "__main__":
