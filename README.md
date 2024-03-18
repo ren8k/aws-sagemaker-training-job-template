@@ -49,6 +49,14 @@ with load_run(sagemaker_session=session) as run:
   - lib も追加で入れたければ requirements.txt に追記
 - run_job.sh を実行
 
+
+
+
+### 実行
+
+spot instanceを利用したい場合：--use-spotを引数に追加
+デフォルトではkeep_alive=30分となっている
+
 ## reference
 
 ### sagemaker experiments
