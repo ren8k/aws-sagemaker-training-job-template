@@ -2,7 +2,7 @@
 cd "$(dirname "$0")"
 BUCKETNAME=sm-train-$(date +%s)
 REGION=ap-northeast-1
-DATA_DIR=/app/sm-train/dataset
+DATA_DIR=../dataset
 
 aws s3api create-bucket --bucket $BUCKETNAME --region $REGION \
     --create-bucket-configuration LocationConstraint=$REGION
