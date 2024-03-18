@@ -17,7 +17,6 @@ class Experiment:
         self.region = args.region
         os.environ["AWS_DEFAULT_REGION"] = self.region
         self.session = sagemaker.Session()
-        self.role = sagemaker.get_execution_role()
         self.dataset_uri = args.dataset_uri
         self.instance_type = args.instance_type
         self.entry_point = args.entry_point
@@ -56,7 +55,7 @@ class Experiment:
         estimator = PyTorch(
             entry_point=self.entry_point,
             source_dir="src",
-            role=self.role,
+            role=sagemaker.get_execution_role(),
             image_uri=self._get_image_uri(),
             instance_count=1,
             instance_type=self.instance_type,
