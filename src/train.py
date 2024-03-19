@@ -130,7 +130,7 @@ def test(model, test_loader, device, epoch, run=None):
         run.log_metric(name="test:loss", value=test_loss, step=epoch)
         run.log_metric(name="test:accuracy", value=accuracy, step=epoch)
     else:
-        utils.log(
+        utils.save_csv(
             {"epoch": epoch, "test_loss": test_loss, "accuracy": accuracy},
             os.path.join(args.out_dir, "metrics.csv"),
         )
