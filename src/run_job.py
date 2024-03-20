@@ -96,7 +96,7 @@ class Experiment:
         # save cloudwatch logs
         cloudwatch_log = utils.get_cloudwatch_logs()
         # utils.save_json(cloudwatch_log, os.path.join(save_dir, "log.json"))
-        utils.save_formatted_logs(cloudwatch_log, os.path.join(save_dir, "log.txt"))
+        utils.save_formatted_logs(cloudwatch_log, os.path.join(save_dir, "log.log"))
 
 
 def get_args():
