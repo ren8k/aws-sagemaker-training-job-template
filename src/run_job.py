@@ -15,6 +15,9 @@ BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 class Experiment:
     def __init__(self, args) -> None:
         self.time_stamp = utils.get_timestamp()
+        self.save_artifact_dir = os.path.join(args.out_dir, self.time_stamp)
+        utils.make_dir(self.save_artifact_dir)
+
         self.region = args.region
         os.environ["AWS_DEFAULT_REGION"] = self.region
         self.session = sagemaker.Session()
@@ -74,29 +77,29 @@ class Experiment:
         )
         return estimator
 
-    def download_artifact(self, estimator, out_dir):
-        save_dir = os.path.join(out_dir, self.time_stamp)
-        utils.make_dir(save_dir)
-
-        # save model
+    def save_model(self, estimator):
         model_uri = estimator.latest_training_job.describe()["ModelArtifacts"][
             "S3ModelArtifacts"
         ]
-        save_path = os.path.join(save_dir, "model.tar.gz")
+        save_path = os.path.join(self.save_artifact_dir, "model.tar.gz")
         utils.download_from_s3(model_uri, save_path)
-        os.system(f"tar -zxvf {save_path} -C {save_dir}")
+        os.system(f"tar -zxvf {save_path} -C {self.save_artifact_dir}")
+        return model_uri
 
+    def save_cloudwatch_log(self):
+        cloudwatch_log = utils.get_cloudwatch_logs()
+        # utils.save_json(cloudwatch_log, os.path.join(save_dir, "log.json"))
+        utils.save_formatted_logs(
+            cloudwatch_log, os.path.join(self.save_artifact_dir, "log.log")
+        )
+
+    def save_exp_info(self, model_uri):
         # save experiment info
         log_data = {
             "model_uri": model_uri,
             "job_name": self.job_name,
         }
-        utils.save_json(log_data, os.path.join(save_dir, "exp.json"))
-
-        # save cloudwatch logs
-        cloudwatch_log = utils.get_cloudwatch_logs()
-        # utils.save_json(cloudwatch_log, os.path.join(save_dir, "log.json"))
-        utils.save_formatted_logs(cloudwatch_log, os.path.join(save_dir, "log.log"))
+        utils.save_json(log_data, os.path.join(self.save_artifact_dir, "exp.json"))
 
 
 def get_args():
@@ -115,7 +118,10 @@ def get_args():
     )
     parser.add_argument("--use-spot", action="store_true", help="Use spot instances")
     parser.add_argument(
-        "--out-dir", type=str, default="./output/model", help="Output directory"
+        "--out-dir",
+        type=str,
+        default=os.path.join(BASE_DIR, "../output/model"),
+        help="Output directory",
     )
     return parser.parse_args()
 
@@ -128,7 +134,9 @@ def main(args):
         run_name=exp.run_name,
     ) as run:
         estimator = exp.run()
-        exp.download_artifact(estimator, args.out_dir)  # option
+        model_uri = exp.save_model(estimator)  # option
+        exp.save_cloudwatch_log()
+        exp.save_exp_info(model_uri)
         print("Finish training job")
 
 
