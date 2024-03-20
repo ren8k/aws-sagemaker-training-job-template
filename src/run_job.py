@@ -9,7 +9,7 @@ from sagemaker.session import Session
 
 import utils
 
-TIMESTAMP = utils.get_timestamp()
+BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
 
 class Experiment:
@@ -24,8 +24,8 @@ class Experiment:
         if args.use_spot:
             self.kwargs = {
                 "use_spot_instances": True,
-                "max_run": 3600,
-                "max_wait": 7200,
+                "max_run": 14400,
+                "max_wait": 14400,
             }
         else:
             # Spot training job can't retain cluster.
@@ -55,13 +55,14 @@ class Experiment:
     def run(self):
         estimator = PyTorch(
             entry_point=self.entry_point,
-            source_dir="src",
+            source_dir=BASE_DIR,
             role=sagemaker.get_execution_role(),
             image_uri=self._get_image_uri(),
             instance_count=1,
             instance_type=self.instance_type,
             hyperparameters=self.hp,
             base_job_name=self.job_name,
+            output_path=f"s3://{self.session.default_bucket()}/{self.exp_name}",
             environment={"AWS_DEFAULT_REGION": self.region},
             **self.kwargs,
         )
@@ -73,22 +74,29 @@ class Experiment:
         )
         return estimator
 
-    def download_model(self, estimator, output_dir):
+    def download_artifact(self, estimator, out_dir):
+        save_dir = os.path.join(out_dir, self.time_stamp)
+        utils.make_dir(save_dir)
+
+        # save model
         model_uri = estimator.latest_training_job.describe()["ModelArtifacts"][
             "S3ModelArtifacts"
         ]
-        save_dir = os.path.join(output_dir, self.time_stamp)
-        utils.make_dir(save_dir)
         save_path = os.path.join(save_dir, "model.tar.gz")
         utils.download_from_s3(model_uri, save_path)
+        os.system(f"tar -zxvf {save_path} -C {save_dir}")
+
+        # save experiment info
         log_data = {
             "model_uri": model_uri,
             "job_name": self.job_name,
         }
-        log_path = os.path.join(save_dir, "log.csv")
-        utils.log(log_data, log_path)
+        utils.save_json(log_data, os.path.join(save_dir, "exp.json"))
 
-        os.system(f"tar -zxvf {save_path} -C {save_dir}")
+        # save cloudwatch logs
+        cloudwatch_log = utils.get_cloudwatch_logs()
+        # utils.save_json(cloudwatch_log, os.path.join(save_dir, "log.json"))
+        utils.save_formatted_logs(cloudwatch_log, os.path.join(save_dir, "log.txt"))
 
 
 def get_args():
@@ -100,17 +108,14 @@ def get_args():
         "--instance-type", type=str, default="ml.g4dn.xlarge", help="InstanceType"
     )
     parser.add_argument(
-        "--region", type=str, default="ap-northeast-1", help="region name"
+        "--region", type=str, default="ap-northeast-1", help="Region name"
     )
     parser.add_argument(
-        "--entry-point", type=str, default="train.py", help="entry point"
+        "--entry-point", type=str, default="train.py", help="Entry point file name"
     )
     parser.add_argument("--use-spot", action="store_true", help="Use spot instances")
     parser.add_argument(
-        "--output-dir",
-        type=str,
-        default="./output/model",
-        help="Output directory for the model",
+        "--out-dir", type=str, default="./output/model", help="Output directory"
     )
     return parser.parse_args()
 
@@ -123,8 +128,17 @@ def main(args):
         run_name=exp.run_name,
     ) as run:
         estimator = exp.run()
-        exp.download_model(estimator, args.output_dir)
+        exp.download_artifact(estimator, args.out_dir)  # option
         print("Finish training job")
+
+
+# def test():
+#     os.environ["AWS_DEFAULT_REGION"] = "ap-northeast-1"
+#     # save cloudwatch logs
+#     save_dir = "/app/sm-train/hoge"
+#     cloudwatch_log = utils.get_cloudwatch_logs()
+#     # utils.save_json(cloudwatch_log, os.path.join(save_dir, "log.json"))
+#     utils.save_formatted_logs(cloudwatch_log, os.path.join(save_dir, "log.log"))
 
 
 if __name__ == "__main__":
