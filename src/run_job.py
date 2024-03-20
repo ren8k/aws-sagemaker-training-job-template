@@ -48,7 +48,7 @@ class Experiment:
     def _get_image_uri(self):
         return image_uris.retrieve(
             framework="pytorch",
-            version="2.0.1",
+            version="2.2.0",
             py_version="py310",
             image_scope="training",
             region=self.region,
@@ -128,16 +128,21 @@ def get_args():
 
 def main(args):
     exp = Experiment(args)
-    with Run(
-        experiment_name=exp.exp_name,
-        sagemaker_session=exp.session,
-        run_name=exp.run_name,
-    ) as run:
-        estimator = exp.run()
-        model_uri = exp.save_model(estimator)  # option
+    try:
+        with Run(
+            experiment_name=exp.exp_name,
+            sagemaker_session=exp.session,
+            run_name=exp.run_name,
+        ) as run:
+            estimator = exp.run()
+            model_uri = exp.save_model(estimator)  # option
+            exp.save_cloudwatch_log()
+            exp.save_exp_info(model_uri)
+            print("Finish training job")
+    except Exception as e:
+        print(f"Error: {e}")
         exp.save_cloudwatch_log()
-        exp.save_exp_info(model_uri)
-        print("Finish training job")
+        raise e
 
 
 # def test():
