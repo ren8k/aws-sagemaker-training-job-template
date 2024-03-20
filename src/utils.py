@@ -1,8 +1,10 @@
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import boto3
 import pandas as pd
+import pytz
 import yaml
 
 
@@ -16,7 +18,7 @@ def get_timestamp():
     return datetime.now(timezone(timedelta(hours=9))).strftime("%Y-%m-%d-%H-%M-%S")
 
 
-def log(data: dict, save_path: Path | str) -> None:
+def save_csv(data: dict, save_path: Path | str) -> None:
     save_path = Path(save_path)
     save_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -26,6 +28,13 @@ def log(data: dict, save_path: Path | str) -> None:
         df.to_csv(save_path, index=False)
     else:
         pd.DataFrame([data]).to_csv(save_path, index=False)
+
+
+def save_json(data: dict, save_path: Path | str) -> None:
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(save_path, "w") as f:
+        json.dump(data, f, indent=4)
 
 
 def upload_to_s3(local_path: Path | str, s3_uri: str) -> None:
@@ -48,3 +57,31 @@ def make_dir(path: Path | str) -> None:
     path = Path(path)
     if not path.exists():
         path.mkdir(parents=True, exist_ok=True)
+
+
+def get_cloudwatch_logs():
+    logs = boto3.client("logs")
+    log_group_name = "/aws/sagemaker/TrainingJobs"
+    latest_logstream_name = logs.describe_log_streams(
+        logGroupName=log_group_name, orderBy="LastEventTime", descending=True
+    )["logStreams"][0]["logStreamName"]
+    log = logs.get_log_events(
+        logGroupName=log_group_name,
+        logStreamName=latest_logstream_name,
+    )
+    return log
+
+
+def save_formatted_logs(logs: dict, save_path: Path | str) -> None:
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    # save "timestamp" and "message" to log file
+    body = logs["events"]
+    with open(save_path, "w") as f:
+        for line in body:
+            time = int(str(line["timestamp"])[:10])
+            # convert UTC to JST
+            dt_utc = datetime.fromtimestamp(time, pytz.utc)
+            dt_jst = dt_utc.astimezone(pytz.timezone("Asia/Tokyo"))
+            message = "[{}] {}\n".format(dt_jst, line["message"])
+            f.write(message)
