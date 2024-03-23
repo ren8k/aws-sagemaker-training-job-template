@@ -146,15 +146,6 @@ def main(args):
         raise e
 
 
-# def test():
-#     os.environ["AWS_DEFAULT_REGION"] = "ap-northeast-1"
-#     # save cloudwatch logs
-#     save_dir = "/app/sm-train/hoge"
-#     cloudwatch_log = utils.get_cloudwatch_logs()
-#     # utils.save_json(cloudwatch_log, os.path.join(save_dir, "log.json"))
-#     utils.save_formatted_logs(cloudwatch_log, os.path.join(save_dir, "log.log"))
-
-
 if __name__ == "__main__":
     args = get_args()
     main(args)
