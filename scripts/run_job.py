@@ -88,13 +88,11 @@ class Experiment:
 
     def save_cloudwatch_log(self):
         cloudwatch_log = utils.get_cloudwatch_logs()
-        # utils.save_json(cloudwatch_log, os.path.join(save_dir, "log.json"))
         utils.save_formatted_logs(
             cloudwatch_log, os.path.join(self.save_artifact_dir, "log.log")
         )
 
     def save_exp_info(self, model_uri):
-        # save experiment info
         log_data = {
             "model_uri": model_uri,
             "job_name": self.job_name,
@@ -136,7 +134,7 @@ def main(args):
             run_name=exp.run_name,
         ) as run:
             estimator = exp.run()
-            model_uri = exp.save_model(estimator)  # option
+            model_uri = exp.save_model(estimator)
             exp.save_cloudwatch_log()
             exp.save_exp_info(model_uri)
             print("Finish training job")
