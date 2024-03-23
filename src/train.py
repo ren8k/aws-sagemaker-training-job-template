@@ -2,7 +2,9 @@ import argparse
 import logging
 import os
 import sys
+from pathlib import Path
 
+import pandas as pd
 import torch
 import torch.nn.functional as F
 import torch.optim as optim
@@ -10,7 +12,6 @@ import torch.utils.data
 import torch.utils.data.distributed
 from sagemaker.experiments import load_run
 
-import utils
 from model import Net
 
 logger = logging.getLogger(__name__)
@@ -130,10 +131,22 @@ def test(model, test_loader, device, epoch, run=None):
         run.log_metric(name="test:loss", value=test_loss, step=epoch)
         run.log_metric(name="test:accuracy", value=accuracy, step=epoch)
     else:
-        utils.log(
+        save_csv(
             {"epoch": epoch, "test_loss": test_loss, "accuracy": accuracy},
             os.path.join(args.out_dir, "metrics.csv"),
         )
+
+
+def save_csv(data: dict, save_path: Path | str) -> None:
+    save_path = Path(save_path)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if save_path.exists():
+        df: pd.DataFrame = pd.read_csv(save_path)
+        df = pd.DataFrame(df.to_dict("records") + [data])
+        df.to_csv(save_path, index=False)
+    else:
+        pd.DataFrame([data]).to_csv(save_path, index=False)
 
 
 def save_model(model, model_dir, device, model_name="model.pth"):
