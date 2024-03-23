@@ -2,12 +2,11 @@ import argparse
 import os
 
 import sagemaker
+import utils
 from sagemaker import image_uris
 from sagemaker.experiments.run import Run
 from sagemaker.pytorch import PyTorch
 from sagemaker.session import Session
-
-import utils
 
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -24,6 +23,7 @@ class Experiment:
         self.dataset_uri = args.dataset_uri
         self.instance_type = args.instance_type
         self.entry_point = args.entry_point
+        self.src_dir = os.path.join(BASE_DIR, "..", args.src_dir)
         if args.use_spot:
             self.kwargs = {
                 "use_spot_instances": True,
@@ -58,7 +58,7 @@ class Experiment:
     def run(self):
         estimator = PyTorch(
             entry_point=self.entry_point,
-            source_dir=BASE_DIR,
+            source_dir=self.src_dir,
             role=sagemaker.get_execution_role(),
             image_uri=self._get_image_uri(),
             instance_count=1,
@@ -116,6 +116,7 @@ def get_args():
     parser.add_argument(
         "--entry-point", type=str, default="train.py", help="Entry point file name"
     )
+    parser.add_argument("--src-dir", type=str, default="src", help="Source directory")
     parser.add_argument("--use-spot", action="store_true", help="Use spot instances")
     parser.add_argument(
         "--out-dir",
