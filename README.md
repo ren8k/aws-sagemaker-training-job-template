@@ -10,6 +10,8 @@ mnist を題材に，train.py をローカル，および sagemaker 上で実行
   - train.py の hp を外部 yaml で管理し，それを読み込み training job に渡すように工夫している
 - sagemaker experimtents を実際に適用したコード例が少ない
   - ローカルでも問題なく実行可能なように記述している
+- SageMaker Training Jobの実行履歴を成功失敗問わず取得するようにしている
+  - 失敗時には原因究明がスムーズになる
 
 ## 写真を交えた解説
 
@@ -31,6 +33,9 @@ with load_run(sagemaker_session=session) as run:
     train(args, run)
 ```
 
+
+- ちなみに，experiments name, run nameを指定しなかった場合でも，問題なく記録可能っぽい，，この仕様よくわからん．．
+
 ## 目次
 
 - train.py の実行
@@ -48,7 +53,15 @@ with load_run(sagemaker_session=session) as run:
   - 依存関係があるコードもまとめて格納
   - lib も追加で入れたければ requirements.txt に追記
 - run_job.sh を実行
+  - training jobの実行
+  - モデルのダウンロードおよび，job_nameの記録も自動でやってくれる
 
+
+
+## TODO
+- sagemaker upload経由でデータセットをuploadする
+- jobはs3のどこに保存されるか？
+  - mnistディレクトリのタイムスタンプディレクトリに格納される
 
 
 
@@ -68,3 +81,5 @@ spot instanceを利用したい場合：--use-spotを引数に追加
 
 - https://github.com/aws-samples/aws-ml-jp/blob/main/sagemaker/sagemaker-experiments/pytorch_mnist/src/mnist_train.py
 - https://github.com/aws-samples/aws-ml-jp/blob/main/sagemaker/sagemaker-training/tutorial/2_2_rewriting_traing_code_for_sagemaker_pytorch.ipynb
+- https://github.com/aws-samples/aws-ml-jp/blob/main/sagemaker/sagemaker-experiments/pytorch_mnist/pytorch_mnist.ipynb
+- https://qiita.com/kazuneet/items/795e561efce8c874d115
