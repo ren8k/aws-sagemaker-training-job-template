@@ -7,6 +7,8 @@ mnist を題材に，train.pyをローカル，および sagemaker 上で実行�
 
 MLOpsの文脈等で実験管理は利用されがちだが，PoCでも使いたい．
 
+可能な限り，
+
 ## TL;DR
 
 
@@ -35,9 +37,46 @@ MLOpsの文脈等で実験管理は利用されがちだが，PoCでも使いた
 - SageMaker Training Jobの実行ログを成功失敗問わず自動取得するようにしている
   - 失敗時には原因究明がスムーズになる
 
+## 前提
+
+- 以下のファイルは`src`ディレクトリに格納する
+  - 学習スクリプト（`train.py`）
+  - `train.py`で利用しているモジュール
+  - `train.py`の実行に必要な依存関係ファイル（`requirements.txt`）
+- `train.py`内部では，`argparse`を利用してハイパーパラメーターを動的に変更できるようにする
+  - SageMaker Experimentsでメトリクスと紐付けて自動記録するため
+- `train.py`で設定するハイパーパラメーターは，`config`ディレクトリ内部のyamlファイルで管理する
+
+
 ## 手順
 
+- 学習スクリプト（`train.py`）および依存関係ファイルを用意
+- データセットをS3にアップロード
+- ハイパーパラメーターを定義したyamlファイルを`config`ディレクトリに格納
+- Training Jobを実行
+
 ## 手順の各ステップの詳細
+
+### 学習スクリプト（`train.py`）および依存関係ファイルを用意
+
+`train.py`，`train.py`で利用しているモジュール，および`train.py`の実行に必要な依存関係ファイル（`requirements.txt`）を`src`ディレクトリに格納する．参考として，本リポジトリではmnsitの画像分類のための`train.py`を作成している．
+
+SageMaker Training Jobで`train.py`を実行するために留意すべき点は以下である．
+
+- 
+
+### データセットをS3にアップロード
+
+`dataset`ディレクトリに利用するデータセットを格納し，`upload_dataset.py`を実行することでS3にupload可能．upload先は以下．
+
+`The S3 URI of the uploaded file(s): s3://sagemaker-ap-northeast-1-081978453918/dataset`
+
+
+### ハイパーパラメーターを定義したyamlファイルを`config`ディレクトリに格納
+
+Training Job実行時にloadすることで，SageMaker Estimatorに容易に渡せる
+
+### Training Jobを実行
 
 写真を交えた解説も行う．
 
@@ -73,9 +112,8 @@ with load_run(sagemaker_session=session) as run:
 
 ## 使い方
 
-
 - s3 に学習データを upload
-- src ディレクトリ内に実行したいコードを格納
+- `src` ディレクトリ内に実行したいコードを格納
   - コード名は`train.py`を想定している
   - 依存関係があるコードもまとめて格納
   - lib も追加で入れたければ requirements.txt に追記
@@ -97,7 +135,19 @@ with load_run(sagemaker_session=session) as run:
 spot instanceを利用したい場合：--use-spotを引数に追加
 デフォルトではkeep_alive=30分となっている
 
+## Tips
+
+- 同一名のExperimentsに紐付けられるRunの総数は50である（SageMakerが自動作成したものを除く）[^01]．50を超えると以下のエラーが発生するため，Experiments Nameを変更する必要がある．
+
+```
+botocore.errorfactory.ResourceLimitExceeded: An error occurred (ResourceLimitExceeded) when calling the AssociateTrialComponent operation: The account-level service limit 'Total number of trial components allowed in a single trial, excluding those automatically created by SageMaker' is 50 Trial Components, with current utilization of 0 Trial Components and a request delta of 51 Trial Components. Please use AWS Service Quotas to request an increase for this quota. If AWS Service Quotas is not available, contact AWS support to request an increase for this quota.
+```
+
+
+
 ## reference
+
+[^01]: [Amazon SageMaker endpoints and quotas](https://docs.aws.amazon.com/general/latest/gr/sagemaker.html)
 
 ### sagemaker experiments
 
