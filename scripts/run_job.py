@@ -1,12 +1,12 @@
 import argparse
 import os
 
+import botocore
 import sagemaker
 import utils
 from sagemaker import image_uris
 from sagemaker.experiments.run import Run
 from sagemaker.pytorch import PyTorch
-from sagemaker.session import Session
 
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -139,9 +139,13 @@ def main(args):
             exp.save_cloudwatch_log()
             exp.save_exp_info(model_uri)
             print("Finish training job")
+    except botocore.exceptions.ClientError as e:
+        print(f"ClientError occurred : {e}")
+        print(type(e))
+        exp.save_cloudwatch_log()
+        raise e
     except Exception as e:
         print(f"Error: {e}")
-        exp.save_cloudwatch_log()
         raise e
 
 
