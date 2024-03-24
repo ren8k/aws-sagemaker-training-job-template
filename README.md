@@ -9,7 +9,11 @@ mnist を題材に，train.pyをローカル，および sagemaker 上で実行�
 
 MLOpsの文脈等で実験管理は利用されがちだが，PoCでも使いたい．
 
-可能な限り，
+可能な限り，写真を交えた解説も行う．
+
+- 自分用の sagemaker training job 実行テンプレートを作成したかった
+- sagemaker experiments のサンプルコードが少ない
+
 
 ## TL;DR
 
@@ -41,16 +45,17 @@ MLOpsの文脈等で実験管理は利用されがちだが，PoCでも使いた
 
 ## 前提
 
-- SageMaker Studio, SageMaker Python SDKがinstallされたML実行環境上での実行を想定している．
+- SageMaker Studio，または，sagemaker>=2.213.0がinstallされたML実行環境上での実行を想定している．
   - 本リポジトリは，AWS Deep Learning Containers Imagesをベースとした VSCode Dev Containers 上で開発を行っている．Training Jobと同一環境でのTrainingコードの動作確認を行えるため，開発効率が良い．詳細は[VSCode Dev Containers を利用した AWS EC2 上での開発環境構築手順](https://github.com/Renya-Kujirada/aws-ec2-devkit-vscode)を参照されたい．
 
 - 機械学習フレームワークとしてPytorchの利用を想定している．
   - 勿論，TensorFlow，MXNet，HuggingFaceなどにも対応させることも可能．（run_job.pyを修正する必要あり）
 
-- 以下のファイルは`src`ディレクトリに格納する
-  - 学習スクリプト（`train.py`）
+- 以下のファイルは`src`ディレクトリに格納する．
+  - 学習スクリプト（`train.py`という名前を想定している）
   - `train.py`で利用しているモジュール
   - `train.py`の実行に必要な依存関係ファイル（`requirements.txt`）
+    - Training Job実行時，コンテナ上に自動でinstallされる
 - `train.py`内部では，`argparse`を利用してハイパーパラメーターを動的に変更できるようにする
   - SageMaker Experimentsでメトリクスと紐付けて自動記録するため
 - `train.py`で設定するハイパーパラメーターは，`config`ディレクトリ内部のyamlファイルで管理する
@@ -62,7 +67,7 @@ MLOpsの文脈等で実験管理は利用されがちだが，PoCでも使いた
 - データセットの準備とS3へのアップロード
 - 学習スクリプト（`train.py`）および依存関係ファイルを用意
 - ハイパーパラメーターを定義したyamlファイルを`config`ディレクトリに格納
-- Training Jobを実行
+- Training Jobを実行し，作成されたモデル・CloudWatch Logsを自動ダウンロード
 
 ## 手順の各ステップの詳細
 
@@ -178,13 +183,28 @@ python train.py
 
 `train.py`上で`argparse`で指定しているハイパーパラメーターを`exp_<3桁の実験番号>.yaml`という名前で保存しておく．Training Job実行時に`yaml.safe_load`でdict形式でloadし，SageMaker Estimatorに容易に渡せるためである．
 
-### Training Jobを実行
+### Training Jobを実行し，作成されたモデル・CloudWatch Logsを自動ダウンロード
 
-`scripts/run_job.py`を実行することで，`src`ディレクトリ内の`train.py`がTraining Jobによって実行される．なお，run_job.pyは，SageMaker Pytorch Estimatorの一部の引数をコマンドライン引数として指定することができる．全てを説明しないが，利用頻度が高そうなものを紹介する．
+`scripts`ディレクトリ内部で`run_job.py`を実行することで，`src`ディレクトリ内の`train.py`がTraining Jobによって実行される．また，Training Jobにより作成されたモデル，実行ログ（CloudWatch Logs），実験ログ（モデルのs3 uri, およびjob name）もダウンロード・記録される．なお，Training Jobの成否に関わらず，CloudWatch Logsのログはダウンロードするよう実装している．これにより，Training Jobの実行に失敗した場合，迅速にエラー解析が可能になる．
 
-- `--config`: Pytorch Estimatorの引数`hp`に渡すためのハイパーパラメーターが記載されたyamlファイルパス．命名規則は`expXXX.yaml`である．（XXXは3桁の実験番号）
+`run_job.py`では，SageMaker Pytorch Estimatorの一部の引数をコマンドライン引数として指定することができる．全てを説明しないが，利用頻度が高そうなものを紹介する．
 
-`scripts/run_job.sh`の9行目，10行目，12行目を編集する．以下に`run_job.sh`の中身を示す．9行目の変数`EXP_NAME`には任意の実験名を，10行目の変数`ACCOUNT_ID`には自身のAWSアカウントIDを，12行目の変数`DATASET_S3_URI`にはTraining Jobに転送したいデータセットのS3 URIを指定する．なお，12行目は`src/upload_dataset.py`実行時に引数`--prefix`を指定していない場合は変更不要である．
+- `--config`: Pytorch Estimatorの引数`hp`に渡すためのハイパーパラメーターを定義したyamlファイルパス
+- `--dataset-uri`: データセットを格納しているS3 URI
+- `--exp-name`: Training Jobのjob名のprefix，およびSageMaker Experiments名
+- `--instance-type`: インスタンスタイプ（デフォルトは`ml.g4dn.xlarge`）
+- `--input-mode`: データセットをTraining Job開始前にコンテナにダウンロードするか，Training Job実行中にストリーミングで取得するかを指定可能．詳細は公式ブログ[^9]を参照されたい．
+- `--use-spot`: スポットインスタンスを使用するかを指定可能．(デフォルトでは利用しない)
+
+なお，Training Jobでは，`SageMaker managed warm pools`を利用する前提である．本機能は，Training Jobを実行後，その際に使用したインスタンスを停止せずに保持しておき，待ち時間無くTraining Jobを再実行可能な機能である．Warm pool を使用する場合，インスタンスタイプごとに上限緩和申請が必要である．詳細は[^10]を参照されたい．
+
+Training Job実行に伴い，作成されるSageMaker Experiments Run名，S3へのモデルの保存先，およびローカルへのダウンロード先を以下に示す．
+
+- SageMaker Experiments Run名: `run-{yyyy-mm-dd-hh-mm-ss}`
+- モデル保存先（S3）: `s3://sagemaker-{REGION}-{ACCOUNT_ID}/dataset/result-training-job-{self.exp_name}`
+- モデルダウンロード先（ローカル）: `../result/model/{yyyy-mm-dd-hh-mm-ss}`
+
+`run_job.py`を容易に実行するために`run_job.sh`を用意している．`run_job.sh`の9行目，10行目，12行目を編集することで，利用可能である．以下に`run_job.sh`の中身を示す．9行目の変数`EXP_NAME`には任意の実験名を，10行目の変数`ACCOUNT_ID`には自身のAWSアカウントIDを，12行目の変数`DATASET_S3_URI`にはTraining Jobに転送したいデータセットのS3 URIを指定する．なお，12行目は`src/upload_dataset.py`実行時に引数`--prefix`を指定していない場合は変更不要である．
 
 ```sh
 #!/bin/bash
@@ -217,29 +237,17 @@ python run_job.py --config $CONF_PATH \
 bash run_job.sh 001
 ```
 
-上記コマンドにより，`src/run_job.py`が実行され，
-- ``
+上記コマンドにより，`src/run_job.py`が実行され，Training Jobを実行することができる．
 
-以下を実行することで，run_job.pyが実行される．
+## Tips
 
-- 実験名：
-- アーティファクト格納先：
+- 同一名のExperimentsに紐付けられるRunの総数は50である（SageMakerが自動作成したものを除く）[^20]．50を超えると以下のエラーが発生するため，Experiments Nameを変更する必要がある．
 
----
+```
+botocore.errorfactory.ResourceLimitExceeded: An error occurred (ResourceLimitExceeded) when calling the AssociateTrialComponent operation: The account-level service limit 'Total number of trial components allowed in a single trial, excluding those automatically created by SageMaker' is 50 Trial Components, with current utilization of 0 Trial Components and a request delta of 51 Trial Components. Please use AWS Service Quotas to request an increase for this quota. If AWS Service Quotas is not available, contact AWS support to request an increase for this quota.
+```
 
-
-写真を交えた解説も行う．
-
-
-- 自分用の sagemaker training job 実行テンプレートを作成したかった
-- sagemaker experiments のサンプルコードが少ない
-  - 現時点（2024/03/17）では，ExperimentsName 並びに RunName をトレーニングジョブ内のスクリプトに明示的に指定する必要がある．（qiita を参考にした）
-    - 以下の公式ドキュメント通りでもうまくいく
-    - https://sagemaker-examples.readthedocs.io/en/latest/sagemaker-experiments/sagemaker_job_tracking/pytorch_script_mode_training_job.html
-- warm pool はいいぞ！！
-- その他，FastFile modeなどもあるので，適宜利用されたい．
-
-- s3://{SageMakerのdefault bucket}/{job_name}/model/mode.tar.gzに配置されます。また、SageMakerのdefault bucket は sagemaker-{REGION}-{ACCOUNT_ID}
+- `train.py`内でのSageMaker Experimentsの実装について，本リポジトリ上ではExperimentsName 並びに RunName をトレーニングジョブ内のスクリプトに明示的に指定することで，`run_job.py`上で作成したRunを利用して記録するようにしているが，公式の実装例[^6]でも問題なく記録することが可能．具体的な実装例は以下．
 
 ```py
 import boto3
@@ -249,53 +257,6 @@ session = Session(boto3.session.Session(region_name="ap-northeast-1"))
 with load_run(sagemaker_session=session) as run:
     train(args, run)
 ```
-
-
-- ちなみに，experiments name, run nameを指定しなかった場合でも，問題なく記録可能っぽい，，この仕様よくわからん．．
-
-## 目次
-
-- train.py の実行
-- train.py のリファクタリング
-- train.py を sm で実行
-- sm-experiments の実装
-
-- warm pool の開放（申請すること）
-
-## 使い方
-
-- s3 に学習データを upload
-- `src` ディレクトリ内に実行したいコードを格納
-  - コード名は`train.py`を想定している
-  - 依存関係があるコードもまとめて格納
-  - lib も追加で入れたければ requirements.txt に追記
-- run_job.sh を実行
-  - training jobの実行
-  - モデルのダウンロードおよび，job_nameの記録も自動でやってくれる
-
-
-
-## TODO
-- sagemaker upload経由でデータセットをuploadする
-- jobはs3のどこに保存されるか？
-  - mnistディレクトリのタイムスタンプディレクトリに格納される
-
-
-
-### 実行
-
-spot instanceを利用したい場合：--use-spotを引数に追加
-デフォルトではkeep_alive=30分となっている
-
-## Tips
-
-- 同一名のExperimentsに紐付けられるRunの総数は50である（SageMakerが自動作成したものを除く）[^10]．50を超えると以下のエラーが発生するため，Experiments Nameを変更する必要がある．
-
-```
-botocore.errorfactory.ResourceLimitExceeded: An error occurred (ResourceLimitExceeded) when calling the AssociateTrialComponent operation: The account-level service limit 'Total number of trial components allowed in a single trial, excluding those automatically created by SageMaker' is 50 Trial Components, with current utilization of 0 Trial Components and a request delta of 51 Trial Components. Please use AWS Service Quotas to request an increase for this quota. If AWS Service Quotas is not available, contact AWS support to request an increase for this quota.
-```
-
-
 
 ## reference
 
@@ -315,22 +276,18 @@ botocore.errorfactory.ResourceLimitExceeded: An error occurred (ResourceLimitExc
 
 [^8]: [Training APIs > Estimators](https://sagemaker.readthedocs.io/en/stable/api/training/estimators.html)
 
-[^10]: [Amazon SageMaker endpoints and quotas](https://docs.aws.amazon.com/general/latest/gr/sagemaker.html)
+[^9]: [Choose the best data source for your Amazon SageMaker training job](https://aws.amazon.com/jp/blogs/machine-learning/choose-the-best-data-source-for-your-amazon-sagemaker-training-job/)
+
+[^10]: [Train Using SageMaker Managed Warm Pools](https://docs.aws.amazon.com/sagemaker/latest/dg/train-warm-pools.html)
+
+[^20]: [Amazon SageMaker endpoints and quotas](https://docs.aws.amazon.com/general/latest/gr/sagemaker.html)
 
 ### sagemaker experiments
 
-#### official
-
-
-
-
 #### blog
-
-- 
 
 - [SageMaker Processing で前処理を行って Training で学習したモデルのパラメータや精度を Experiments で記録する](https://www.sambaiz.net/article/442/)
 
-- https://sagemaker-examples.readthedocs.io/en/latest/sagemaker-experiments/sagemaker_job_tracking/pytorch_script_mode_training_job.html
 
 ### sagemaker training job
 
@@ -342,7 +299,6 @@ botocore.errorfactory.ResourceLimitExceeded: An error occurred (ResourceLimitExc
 
 #### blog
 
-- [エンジニア目線で始める Amazon SageMaker Training ①機械学習を使わないはじめてのTraining Job](https://qiita.com/kazuneet/items/795e561efce8c874d115)
 - [SageMaker で学習ジョブを実行する ~組み込みアルゴリズム~](https://nsakki55.hatenablog.com/entry/2022/05/30/235551)
 - [Amazon SageMakerで独自アルゴリズムを使ったトレーニング(学習)の作り方](https://qiita.com/shirakiya/items/b43c190958331c9825d3)
 - [SageMaker入門者向け - 資料リンク集 -](https://qiita.com/Roe/items/fecb88176f1d29e99e0b)
