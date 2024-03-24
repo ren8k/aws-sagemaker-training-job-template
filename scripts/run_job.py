@@ -65,7 +65,7 @@ class Experiment:
             instance_type=self.instance_type,
             hyperparameters=self.hp,
             base_job_name=self.job_name,
-            output_path=f"s3://{self.session.default_bucket()}/{self.exp_name}",
+            output_path=f"s3://{self.session.default_bucket()}/result-training-job-{self.exp_name}",
             environment={"AWS_DEFAULT_REGION": self.region},
             **self.kwargs,
         )
