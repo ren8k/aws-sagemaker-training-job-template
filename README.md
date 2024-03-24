@@ -68,7 +68,7 @@ MLOpsの文脈等で実験管理は利用されがちだが，PoCでも使いた
 
 ### データセットの準備とS3へのアップロード
 
-`dataset`ディレクトリに，`train.py`で利用するデータセットを準備する．その後，`src`ディレクトリ上で以下のように`upload_dataset.py`を実行することで，データセットをS3にuploadする．
+`dataset`ディレクトリに，`train.py`で利用するデータセットを準備する．その後，`src`ディレクトリ内部で以下のように`upload_dataset.py`を実行することで，データセットをS3にuploadする．
 
 ```
 python upload_dataset.py
@@ -159,7 +159,7 @@ run.log_metric(name="test:accuracy", value=accuracy, step=epoch)
 
 ### Local上での動作確認
 
-SageMaker Training Jobを実行する前に，SageMaker Training Jobを模したLocalでの動作確認を行うことは，実験効率の観点で重要である．Training Jobを実行する際，Job実行用のインスタンス・コンテナ起動時間などの待ち時間が発生するためである．以下のようなshellを作成し，実際に実行してみることを推奨する（本リポジトリでは，`train.sh`というshellを用意している）．
+SageMaker Training Jobを実行する前に，SageMaker Training Jobを模してLocalで動作確認を行うことは，実験効率の観点で重要である．Training Jobを実行する際，Job実行用のインスタンス・コンテナ起動時間などの待ち時間が発生するためである．以下のようなshellを作成し，実際に実行してみることを推奨する（本リポジトリでは，`src`ディレクトリ内に`train.sh`というshellを用意している）．
 
 ```sh
 #!/bin/bash
@@ -170,10 +170,9 @@ export SM_OUTPUT_DATA_DIR="../result/output"
 export SM_MODEL_DIR="../result/model"
 
 python train.py
-
 ```
 
-`bash train.sh`のように実行することで，`dataset`ディレクトリ上のデータセットを入力とし，`result/model`ディレクトリには学習後のモデルの重みファイルが，`result/output`ディレクトリにはその他ファイルが保存されることを確認することができる．
+`bash train.sh`のように実行することで，`dataset`ディレクトリ上のデータセットを入力とし，`result/model`ディレクトリには学習後のモデルの重みファイルが，`result/output`ディレクトリにはその他ファイル（本リポジトリの`train.py`の場合，epoch毎のメトリクスとモデルの重みファイル）が保存されることを確認できる．
 
 ### ハイパーパラメーターを定義したyamlファイルを`config`ディレクトリに格納
 
@@ -181,7 +180,11 @@ python train.py
 
 ### Training Jobを実行
 
+`scripts/run_job.py`を実行することで，`src`ディレクトリ内の`train.py`がTraining Jobによって実行される．なお，run_job.pyは，SageMaker Pytorch Estimatorの一部の引数をコマンドライン引数として指定することができる．全てを説明しないが，利用頻度が高そうなものを紹介する．
 
+- `--config`: Pytorch Estimatorの引数`hp`に渡すためのハイパーパラメーターが記載されたyamlファイルパス．命名規則は`expXXX.yaml`である．（XXXは3桁の実験番号）
+
+`scripts/run_job.sh`の9行目，10行目，12行目を編集する．以下に`run_job.sh`の中身を示す．9行目の変数`EXP_NAME`には任意の実験名を，10行目の変数`ACCOUNT_ID`には自身のAWSアカウントIDを，12行目の変数`DATASET_S3_URI`にはTraining Jobに転送したいデータセットのS3 URIを指定する．なお，12行目は`src/upload_dataset.py`実行時に引数`--prefix`を指定していない場合は変更不要である．
 
 ```sh
 #!/bin/bash
@@ -206,8 +209,21 @@ python run_job.py --config $CONF_PATH \
     --instance-type $INSTANCE_TYPE \
     --region $REGION \
     --out-dir $OUT_DIR
-
 ```
+
+その後，`scripts`ディレクトリ内部にて，以下のコマンドで，3桁の実験番号を引数として指定して`run_job.sh`を実行する．ここで，3桁の実験番号は，`config`ディレクトリの`exp_<3桁の実験番号>.yaml`のファイル名の末尾の番号である．
+
+```sh
+bash run_job.sh 001
+```
+
+上記コマンドにより，`src/run_job.py`が実行され，
+- ``
+
+以下を実行することで，run_job.pyが実行される．
+
+- 実験名：
+- アーティファクト格納先：
 
 ---
 
@@ -289,13 +305,15 @@ botocore.errorfactory.ResourceLimitExceeded: An error occurred (ResourceLimitExc
 
 [^3]: [SageMaker Training Toolkit - ENVIRONMENT_VARIABLES.md 日本語版](https://zenn.dev/kmotohas/articles/7bfe313eab01ea)
 
-[^4]: [Amazon SageMaker Experiments](https://sagemaker.readthedocs.io/en/stable/experiments/sagemaker.experiments.html)
+[^4]: [Amazon SageMaker Experiments > Experiments](https://sagemaker.readthedocs.io/en/stable/experiments/sagemaker.experiments.html)
 
 [^5]: [Next generation Amazon SageMaker Experiments – Organize, track, and compare your machine learning trainings at scale](https://aws.amazon.com/jp/blogs/machine-learning/next-generation-amazon-sagemaker-experiments-organize-track-and-compare-your-machine-learning-trainings-at-scale/)
 
 [^6]: [Track an experiment while training a Pytorch model with a SageMaker Training Job](https://sagemaker-examples.readthedocs.io/en/latest/sagemaker-experiments/sagemaker_job_tracking/pytorch_script_mode_training_job.html)
 
 [^7]: [新しくなった Amazon SageMaker Experiments で実験管理](https://qiita.com/mariohcat/items/9fde1b04c0ecf439d427)
+
+[^8]: [Training APIs > Estimators](https://sagemaker.readthedocs.io/en/stable/api/training/estimators.html)
 
 [^10]: [Amazon SageMaker endpoints and quotas](https://docs.aws.amazon.com/general/latest/gr/sagemaker.html)
 
