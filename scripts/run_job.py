@@ -23,6 +23,7 @@ class Experiment:
         self.dataset_uri = args.dataset_uri
         self.instance_type = args.instance_type
         self.entry_point = args.entry_point
+        self.input_mode = args.input_mode
         self.src_dir = os.path.join(BASE_DIR, "..", args.src_dir)
         if args.use_spot:
             self.kwargs = {
@@ -67,7 +68,7 @@ class Experiment:
             base_job_name=self.job_name,
             output_path=f"s3://{self.session.default_bucket()}/result-training-job-{self.exp_name}",
             environment={"AWS_DEFAULT_REGION": self.region},
-            # input_mode="FastFile",
+            input_mode=self.input_mode,
             **self.kwargs,
         )
 
@@ -116,6 +117,13 @@ def get_args():
         "--entry-point", type=str, default="train.py", help="Entry point file name"
     )
     parser.add_argument("--src-dir", type=str, default="src", help="Source directory")
+    parser.add_argument(
+        "--input-mode",
+        type=str,
+        default="File",
+        choices=["File", "Pipe", "FastFile"],
+        help="Input mode",
+    )
     parser.add_argument("--use-spot", action="store_true", help="Use spot instances")
     parser.add_argument(
         "--out-dir",
