@@ -48,7 +48,7 @@ class Experiment:
     def _get_image_uri(self):
         return image_uris.retrieve(
             framework="pytorch",
-            version="2.2.0",
+            version="2.1.0",
             py_version="py310",
             image_scope="training",
             region=self.region,
@@ -67,6 +67,7 @@ class Experiment:
             base_job_name=self.job_name,
             output_path=f"s3://{self.session.default_bucket()}/result-training-job-{self.exp_name}",
             environment={"AWS_DEFAULT_REGION": self.region},
+            # input_mode="FastFile",
             **self.kwargs,
         )
 
