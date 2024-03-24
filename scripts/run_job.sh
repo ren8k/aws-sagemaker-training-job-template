@@ -1,13 +1,16 @@
 #!/bin/bash
 cd "$(dirname "$0")"
 
+## config setting
 EXP_ID=$1 # three digits number for experiment id
-
 CONF_PATH=../config/exp$EXP_ID.yaml
-DATASET_S3_URI=s3://sm-train-1710652103
+
+## experiments setting
 EXP_NAME=mnist
-INSTANCE_TYPE=ml.g4dn.xlarge
+ACCOUNT_ID=XXXXXXXXXXXX
 REGION=ap-northeast-1
+DATASET_S3_URI=s3://sagemaker-$REGION-$ACCOUNT_ID/dataset
+INSTANCE_TYPE=ml.g4dn.xlarge
 OUT_DIR="../result/model"
 
 python run_job.py --config $CONF_PATH \
