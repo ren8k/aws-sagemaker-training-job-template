@@ -9,7 +9,7 @@ def get_args():
     parser.add_argument(
         "--region", type=str, default="ap-northeast-1", help="Region name"
     )
-    parser.add_argument("--prefix", type=str, default="dataset/mnist", help="S3 prefix")
+    parser.add_argument("--prefix", type=str, default="dataset", help="S3 prefix")
     parser.add_argument(
         "--upload-dir", type=str, default="../dataset", help="Upload directory"
     )
