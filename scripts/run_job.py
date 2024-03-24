@@ -1,12 +1,12 @@
 import argparse
 import os
 
+import botocore
 import sagemaker
 import utils
 from sagemaker import image_uris
 from sagemaker.experiments.run import Run
 from sagemaker.pytorch import PyTorch
-from sagemaker.session import Session
 
 BASE_DIR = os.path.dirname(os.path.realpath(__file__))
 
@@ -23,6 +23,7 @@ class Experiment:
         self.dataset_uri = args.dataset_uri
         self.instance_type = args.instance_type
         self.entry_point = args.entry_point
+        self.input_mode = args.input_mode
         self.src_dir = os.path.join(BASE_DIR, "..", args.src_dir)
         if args.use_spot:
             self.kwargs = {
@@ -48,7 +49,7 @@ class Experiment:
     def _get_image_uri(self):
         return image_uris.retrieve(
             framework="pytorch",
-            version="2.2.0",
+            version="2.1.0",
             py_version="py310",
             image_scope="training",
             region=self.region,
@@ -67,6 +68,7 @@ class Experiment:
             base_job_name=self.job_name,
             output_path=f"s3://{self.session.default_bucket()}/result-training-job-{self.exp_name}",
             environment={"AWS_DEFAULT_REGION": self.region},
+            input_mode=self.input_mode,
             **self.kwargs,
         )
 
@@ -115,11 +117,18 @@ def get_args():
         "--entry-point", type=str, default="train.py", help="Entry point file name"
     )
     parser.add_argument("--src-dir", type=str, default="src", help="Source directory")
+    parser.add_argument(
+        "--input-mode",
+        type=str,
+        default="File",
+        choices=["File", "Pipe", "FastFile"],
+        help="Input mode",
+    )
     parser.add_argument("--use-spot", action="store_true", help="Use spot instances")
     parser.add_argument(
         "--out-dir",
         type=str,
-        default=os.path.join(BASE_DIR, "../output/model"),
+        default=os.path.join(BASE_DIR, "../result/model"),
         help="Output directory",
     )
     return parser.parse_args()
@@ -138,9 +147,13 @@ def main(args):
             exp.save_cloudwatch_log()
             exp.save_exp_info(model_uri)
             print("Finish training job")
+    except botocore.exceptions.ClientError as e:
+        print(f"ClientError occurred : {e}")
+        print(type(e))
+        exp.save_cloudwatch_log()
+        raise e
     except Exception as e:
         print(f"Error: {e}")
-        exp.save_cloudwatch_log()
         raise e
 
 
