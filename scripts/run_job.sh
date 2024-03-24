@@ -13,6 +13,7 @@ DATASET_S3_URI=s3://sagemaker-$REGION-$ACCOUNT_ID/dataset
 INSTANCE_TYPE=ml.g4dn.xlarge
 OUT_DIR="../result/model"
 
+# if you use spot instance, add --use-spot
 python run_job.py --config $CONF_PATH \
     --dataset-uri $DATASET_S3_URI \
     --exp-name $EXP_NAME \
