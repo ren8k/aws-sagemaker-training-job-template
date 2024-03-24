@@ -128,7 +128,7 @@ def get_args():
     parser.add_argument(
         "--out-dir",
         type=str,
-        default=os.path.join(BASE_DIR, "../output/model"),
+        default=os.path.join(BASE_DIR, "../result/model"),
         help="Output directory",
     )
     return parser.parse_args()
