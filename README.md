@@ -22,6 +22,9 @@ MLOps の文脈等で実験管理は利用されがちだが，PoC でも使い�
 - [目的・解決方法](#目的解決方法)
 - [オリジナリティ](#オリジナリティ)
 - [前提](#前提)
+  - [環境](#環境)
+  - [ディレクトリ](#ディレクトリ)
+  - [コード](#コード)
 - [手順](#手順)
 - [手順の各ステップの詳細](#手順の各ステップの詳細)
   - [データセットの準備と S3 へのアップロード](#データセットの準備と-s3-へのアップロード)
@@ -32,6 +35,9 @@ MLOps の文脈等で実験管理は利用されがちだが，PoC でも使い�
   - [Local 上での動作確認](#local-上での動作確認)
   - [ハイパーパラメーターを定義した yaml ファイルを`config`ディレクトリに格納](#ハイパーパラメーターを定義した-yaml-ファイルをconfigディレクトリに格納)
   - [Training Job を実行し，作成されたモデル・CloudWatch Logs を自動ダウンロード](#training-job-を実行し作成されたモデルcloudwatch-logs-を自動ダウンロード)
+    - [`run_job.py`の概要](#run_jobpyの概要)
+    - [実行方法](#実行方法)
+    - [Training Job の実行結果の保存先](#training-job-の実行結果の保存先)
 - [Tips](#tips)
 
 ## 背景と課題
@@ -51,15 +57,32 @@ MLOps の文脈等で実験管理は利用されがちだが，PoC でも使い�
 
 ## 前提
 
+### 環境
+
 - SageMaker Studio，または，sagemaker>=2.213.0 が install された ML 実行環境上での実行を想定している．
-
   - 本リポジトリは，AWS Deep Learning Containers Images をベースとした VSCode Dev Containers 上で開発を行っている．Training Job と同一環境での Training コードの動作確認を行えるため，開発効率が良い．詳細は[VSCode Dev Containers を利用した AWS EC2 上での開発環境構築手順](https://github.com/Renya-Kujirada/aws-ec2-devkit-vscode)を参照されたい．
+- 機械学習フレームワークとして PyTorch の利用を想定している．
+  - 勿論，TensorFlow，MXNet，HuggingFace などにも対応させることも可能．（`scripts/run_job.py` を修正する必要あり）
 
-- 機械学習フレームワークとして Pytorch の利用を想定している．
+### ディレクトリ
 
-  - 勿論，TensorFlow，MXNet，HuggingFace などにも対応させることも可能．（run_job.py を修正する必要あり）
+本リポジトリは，以下のディレクトリ構成を想定している．
 
-- 以下のファイルは`src`ディレクトリに格納する．
+```
+.
+├── config      :   学習スクリプトのハイパーパラメーターを定義したyamlを格納
+├── dataset     :   Localで学習スクリプトを実行する際に利用するデータセットを格納
+├── rawdata     :   Rawデータを格納（任意）
+├── result
+│   ├── model   :   Training Job実行後にモデルを自動ダウンロード（格納）
+│   └── output  :   Localで学習スクリプトを実行する際に利用するデータ保存先
+├── scripts     :   Training Job実行用のスクリプトを格納
+└── src         :   学習スクリプトを格納
+```
+
+### コード
+
+- 以下のファイルは`src`ディレクトリに格納する
   - 学習スクリプト（`train.py`という名前を想定している）
   - `train.py`で利用しているモジュール
   - `train.py`の実行に必要な依存関係ファイル（`requirements.txt`）
@@ -194,7 +217,13 @@ python train.py
 
 ### Training Job を実行し，作成されたモデル・CloudWatch Logs を自動ダウンロード
 
-`scripts`ディレクトリ内部で`run_job.py`を実行することで，`src`ディレクトリ内の`train.py`が Training Job によって実行される．また，Training Job により作成されたモデル，実行ログ（CloudWatch Logs），実験ログ（モデルの s3 uri, および job name）もダウンロード・記録される．なお，Training Job の成否に関わらず，CloudWatch Logs のログはダウンロードするよう実装している．これにより，Training Job の実行に失敗した場合，迅速にエラー解析が可能になる．
+`scripts/run_job.py`を実行することで，Training Job を実行することができる．
+
+#### `run_job.py`の概要
+
+`scripts`ディレクトリ内部で`run_job.py`を実行することで，`src`ディレクトリ内の`train.py`が Training Job によって実行される．また，Training Job により作成されたモデル，実行ログ（CloudWatch Logs），実験情報（モデルの s3 uri, および job name）は自動ダウンロードされる．なお，Training Job の成否に関わらず，CloudWatch Logs のログはダウンロードするよう実装している．これにより，Training Job の実行に失敗した場合，迅速にエラー解析が可能になる．
+
+#### 実行方法
 
 `run_job.py`では，SageMaker Pytorch Estimator の一部の引数をコマンドライン引数として指定することができる．全てを説明しないが，利用頻度が高そうなものを紹介する．
 
@@ -204,14 +233,6 @@ python train.py
 - `--instance-type`: インスタンスタイプ（デフォルトは`ml.g4dn.xlarge`）
 - `--input-mode`: データセットを Training Job 開始前にコンテナにダウンロードするか，Training Job 実行中にストリーミングで取得するかを指定可能．詳細は公式ブログ[^9]を参照されたい．
 - `--use-spot`: スポットインスタンスを使用するかを指定可能．(デフォルトでは利用しない)
-
-なお，Training Job では，`SageMaker managed warm pools`を利用する前提である．本機能は，Training Job を実行後，その際に使用したインスタンスを停止せずに保持しておき，待ち時間無く Training Job を再実行可能な機能である．Warm pool を使用する場合，インスタンスタイプごとに上限緩和申請が必要である．詳細は[^10]を参照されたい．
-
-Training Job 実行に伴い，作成される SageMaker Experiments Run 名，S3 へのモデルの保存先，およびローカルへのダウンロード先を以下に示す．
-
-- SageMaker Experiments Run 名: `run-{yyyy-mm-dd-hh-mm-ss}`
-- モデル保存先（S3）: `s3://sagemaker-{REGION}-{ACCOUNT_ID}/dataset/result-training-job-{self.exp_name}`
-- モデルダウンロード先（ローカル）: `../result/model/{yyyy-mm-dd-hh-mm-ss}`
 
 `run_job.py`を容易に実行するために`run_job.sh`を用意している．`run_job.sh`の 9 行目，10 行目，12 行目を編集することで，利用可能である．以下に`run_job.sh`の中身を示す．9 行目の変数`EXP_NAME`には任意の実験名を，10 行目の変数`ACCOUNT_ID`には自身の AWS アカウント ID を，12 行目の変数`DATASET_S3_URI`には Training Job に転送したいデータセットの S3 URI を指定する．なお，12 行目は`src/upload_dataset.py`実行時に引数`--prefix`を指定していない場合は変更不要である．
 
@@ -248,7 +269,17 @@ bash run_job.sh 001
 
 上記コマンドにより，`src/run_job.py`が実行され，Training Job を実行することができる．
 
+#### Training Job の実行結果の保存先
+
+Training Job 実行に伴い作成される SageMaker Experiments Run 名，S3 へのモデルの保存先（S3 URI），およびローカルへのダウンロード先（ディレクトリ）を以下に示す．
+
+- SageMaker Experiments Run 名: `run-{yyyy-mm-dd-hh-mm-ss}`
+- モデル保存先（S3 URI）: `s3://sagemaker-{REGION}-{ACCOUNT_ID}/dataset/result-training-job-{self.exp_name}`
+- モデルダウンロード先（ローカル）: `../result/model/{yyyy-mm-dd-hh-mm-ss}`
+
 ## Tips
+
+- Training Job では，`SageMaker managed warm pools`を利用する前提である．本機能は，Training Job を実行後，その際に使用したインスタンスを停止せずに保持しておき，待ち時間無く Training Job を再実行可能な機能である．Warm pool を使用する場合，インスタンスタイプごとに上限緩和申請が必要である．詳細は[^10]を参照されたい
 
 - 同一名の Experiments に紐付けられる Run の総数は 50 である（SageMaker が自動作成したものを除く）[^20]．50 を超えると以下のエラーが発生するため，Experiments Name を変更する必要がある．
 
