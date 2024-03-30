@@ -1,6 +1,6 @@
 # aws-sagemaker-training-job-template <!-- omit in toc -->
 
-本リポジトリでは，SageMaker Training Job を利用した機械学習コードの実行と実験管理を容易に行うためのテンプレートとその利用手順を示す．テンプレート内では，[MNIST データを題材としたサンプルコード](https://github.com/Renya-Kujirada/aws-sagemaker-training-job-template/blob/main/src/train.py)を用意しており，ローカルで実行している機械学習コードを最小限の修正で SageMaker Training Job として実行し，実験管理を行うための方法を解説している．併せて，[サンプルコードを SageMaker Studio などでクイックに実行するための手順書](https://github.com/Renya-Kujirada/aws-sagemaker-training-job-template/blob/main/docs)も整備しているため参照されたい．
+本リポジトリでは，SageMaker Training Job を利用した機械学習コードの実行と実験管理を容易に行うためのテンプレートとその利用手順を示す．テンプレート内では，[MNIST データを題材としたサンプルコード](https://github.com/Renya-Kujirada/aws-sagemaker-training-job-template/blob/main/src/train.py)を用意しており，ローカルで実行している機械学習コードを最小限の修正で SageMaker Training Job として実行し，実験管理を行うための方法を解説している．併せて，[サンプルコードを SageMaker Studio などでクイックに実行するための手順書](https://github.com/Renya-Kujirada/aws-sagemaker-training-job-template/blob/main/docs/quickstart.md)も整備しているため参照されたい．
 
 本テンプレートは，筆者が実務や Kaggle などでの SageMaker の利用経験を基に作成しており，ローカル，または SageMaker Training Job のどちらでも同一のコードで動作可能な状態にする方法についても述べている．
 
@@ -72,12 +72,12 @@ Amazon SageMaker Training Job とは，① 用意したコードを ② 用意�
 ```
 .
 ├── config      :   学習スクリプトのハイパーパラメーターを定義したyamlを格納
-├── dataset     :   ローカルで学習スクリプトを実行する際に利用するデータセットを格納
+├── dataset     :   データセットを格納（ローカルで学習スクリプトを実行する際に利用）
 ├── rawdata     :   Rawデータを格納（任意）
 ├── result
-│   ├── model   :   Training Job実行後にモデルを自動ダウンロード（格納）
-│   └── output  :   ローカルで学習スクリプトを実行する際に利用するデータ保存先
-├── scripts     :   Training Job実行用のスクリプトを格納
+│   ├── model   :   モデルの重みを保存（Training Job実行後に自動ダウンロード）
+│   └── output  :   モデルの学習時のその他出力物を保存（ローカルで学習スクリプトを実行する際に利用）
+├── scripts     :   Training Jobを実行するためのコードを格納
 └── src         :   学習スクリプトを格納
 ```
 
