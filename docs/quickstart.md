@@ -15,13 +15,13 @@
 ├── result         :    `src/train.py`の実行結果を格納
 │   ├── model      :    モデルの重みを保存
 │   └── output     :    モデルの学習時のその他出力物を保存
-├── scripts        :    SageMaker Training Jobを実行するためのコードを格納
+├── scripts        :    Training Jobを実行するためのコードを格納
 └── src            :    学習スクリプトを格納
 ```
 
 ## 環境準備
 
-EC2 上で VSCode Dev Container を起動，もしくは sagemaker>=2.213.0 が install された ML 実行環境を構築する．特に，EC2 上で Dev Container を利用する手順は，[VSCode Dev Containers を利用した AWS EC2 上での開発環境構築手順](https://github.com/Renya-Kujirada/aws-ec2-devkit-vscode)を参照されたい．
+EC2 上で VSCode Dev Container を起動，もしくは sagemaker>=2.213.0 が install された ML 実行環境を構築する．EC2 上で Dev Container を利用する手順は，[VSCode Dev Containers を利用した AWS EC2 上での開発環境構築手順](https://github.com/Renya-Kujirada/aws-ec2-devkit-vscode)を参照されたい．
 
 ## データセット準備
 
