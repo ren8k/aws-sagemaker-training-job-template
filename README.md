@@ -144,7 +144,7 @@ parser.add_argument(
 )
 ```
 
-Training Job が実行されるコンテナでは，指定した S3 上のデータセットが`/opt/ml/input/data/training`に転送され，コンテナ上の環境変数`SM_CHANNEL_TRAINING`にディレクトリパスが格納される仕様である．よって，コード上では，`args.data_dir`でデータセットのディレクトリパスにアクセスする．なお，Training Job では，他にも様々な環境変数が利用可能である[^2][^3]ので，実装の際には公式リポジトリなどを参考にされたい．
+Training Job が実行されるコンテナでは，指定した S3 上のデータセットが`/opt/ml/input/data/training`に転送され，コンテナ上の環境変数`SM_CHANNEL_TRAINING`にディレクトリパスが格納される仕様である．よって，コード上では，`args.data_dir`でデータセットのディレクトリパスにアクセスする．なお，Training Job では，他にも様々な環境変数が利用可能である[^2-1][^2-2]ので，実装の際には公式リポジトリなどを参考にされたい．
 
 #### アーティファクト（モデル，メトリクス等）の保存先の設定
 
@@ -191,13 +191,13 @@ run.log_confusion_matrix(target.cpu(), pred.cpu(), "Confusion-Matrix-Test-Data")
 run.log_metric(name="test:accuracy", value=accuracy, step=epoch)
 ```
 
-のように記述すると良い．詳細については，公式ドキュメント[^4][^5][^6]やブログ[^7]を参考にされたい．
+のように記述すると良い．詳細については，公式ドキュメント[^3-1][^3-2][^3-3]やブログ[^3-4]を参考にされたい．
 
 なお，本リポジトリ上では，ローカル上でも SageMaker Training Job 上でも同一コードで動作させるために，ローカル実行の場合は明示的に`run = None`としており，run によって，API を実行するか否かを自動判定させている．
 
 ### ローカル上での動作確認
 
-SageMaker Training Job を実行する前に，SageMaker Training Job を模して ローカルで動作確認を行うことは，実験効率の観点で重要である．Training Job を実行する際，Job 実行用のインスタンス・コンテナ起動時間などの待ち時間が発生するためである．以下のような shell を作成し，実際に実行してみることを推奨する（本リポジトリでは，`src`ディレクトリ内に`train.sh`という shell を用意している）．
+SageMaker Training Job を実行する前に，SageMaker Training Job を模して ローカルで動作確認を行うことは，実験効率の観点で重要である．Training Job を実行する際，Job 実行用のインスタンス・コンテナ起動時間などの待ち時間が発生するためである．以下のような shell を作成し，実際に実行してみることを推奨する（本リポジトリでは，`src`ディレクトリ内に`train.sh`という shell スクリプトを用意している）．
 
 ```sh
 #!/bin/bash
@@ -226,13 +226,13 @@ python train.py
 
 #### 実行方法
 
-`run_job.py`では，SageMaker Pytorch Estimator の一部の引数をコマンドライン引数として指定することができる．全てを説明しないが，利用頻度が高そうなものを紹介する．
+`run_job.py`では，SageMaker Pytorch Estimator の一部の引数[^4-1]をコマンドライン引数として指定することができる．全てを説明しないが，利用頻度が高そうなものを紹介する．
 
 - `--config`: Pytorch Estimator の引数`hp`に渡すためのハイパーパラメーターを定義した yaml ファイルパス
 - `--dataset-uri`: データセットを格納している S3 URI
 - `--exp-name`: Training Job の job 名の prefix，および SageMaker Experiments 名
 - `--instance-type`: インスタンスタイプ（デフォルトは`ml.g4dn.xlarge`）
-- `--input-mode`: データセットを Training Job 開始前にコンテナにダウンロードするか，Training Job 実行中にストリーミングで取得するかを指定可能．詳細は公式ブログ[^9]を参照されたい．
+- `--input-mode`: データセットを Training Job 開始前にコンテナにダウンロードするか，Training Job 実行中にストリーミングで取得するかを指定可能．詳細は公式ブログ[^4-2]を参照されたい．
 - `--use-spot`: スポットインスタンスを使用するかを指定可能．(デフォルトでは利用しない)
 
 `run_job.py`を容易に実行するために`run_job.sh`を用意している．`run_job.sh`の 9 行目，10 行目，12 行目を編集することで，利用可能である．以下に`run_job.sh`の中身を示す．9 行目の変数`EXP_NAME`には任意の実験名を，10 行目の変数`ACCOUNT_ID`には自身の AWS アカウント ID を，12 行目の変数`DATASET_S3_URI`には Training Job に転送したいデータセットの S3 URI を指定する．なお，12 行目は`src/upload_dataset.py`実行時に引数`--prefix`を指定していない場合は変更不要である．
@@ -280,15 +280,19 @@ Training Job 実行に伴い作成される SageMaker Experiments Run 名，S3 �
 
 ## Tips
 
-- Training Job では，`SageMaker managed warm pools`を利用する前提である．本機能は，Training Job を実行後，その際に使用したインスタンスを停止せずに保持しておき，待ち時間無く Training Job を再実行可能な機能である．Warm pool を使用する場合，インスタンスタイプごとに上限緩和申請が必要である．詳細は[^10]を参照されたい
+- ローカルで学習スクリプトを開発する際，可能な限り SageMaker Training Job の実行環境と統一することが望ましい．これを実現するため，[AWS Deep Learning Containers (DLCs)](https://github.com/aws/deep-learning-containers/blob/master/available_images.md)のイメージを利用した Docker Container 上で開発すると良い．[DLCs のコンテナを EC2 上で立て，VSCode で開発する方法を解説したリポジトリ](https://github.com/Renya-Kujirada/aws-ec2-devkit-vscode/blob/main/README.md)があるので，詳細はそちらを参照されたい．
 
-- 同一名の Experiments に紐付けられる Run の総数は 50 である（SageMaker が自動作成したものを除く）[^20]．50 を超えると以下のエラーが発生するため，Experiments Name を変更する必要がある．
+- `run_job.py`では，Training Job で`SageMaker managed warm pools`を利用する前提である．本機能は，Training Job を実行後，その際に使用したインスタンスを停止せずに保持しておき，待ち時間無く Training Job を再実行可能な機能である（保持中は課金されることに注意）．Warm pool を使用する場合，インスタンスタイプごとに上限緩和申請が必要である．詳細は[^5-1]を参照されたい．
+
+- `run_job.py`では，引数`--use-spot`を指定することで，Training Job でスポットインスタンス[^5-2]を利用することが可能である．スポットインスタンスを利用することで，70%〜90%のコスト削減を見込める．個人的な感覚では，待ち時間もオンデマンドインスタンスとほぼ変わらない印象である．Training Job 内部で複数回動作確認を行いたい場合は warm pools を，その他の場合はスポットインスタンスを利用することを推奨する（勿論，学習を止めたくない場合や待ち時間が長い場合はオンデマンドインスタンスを利用したほうが良い）．
+
+- 同一名の Experiments に紐付けられる Run の総数は 50 である（SageMaker が自動作成したものを除く）[^5-3]．50 を超えると以下のエラーが発生するため，Experiments Name を変更する必要がある．
 
 ```
 botocore.errorfactory.ResourceLimitExceeded: An error occurred (ResourceLimitExceeded) when calling the AssociateTrialComponent operation: The account-level service limit 'Total number of trial components allowed in a single trial, excluding those automatically created by SageMaker' is 50 Trial Components, with current utilization of 0 Trial Components and a request delta of 51 Trial Components. Please use AWS Service Quotas to request an increase for this quota. If AWS Service Quotas is not available, contact AWS support to request an increase for this quota.
 ```
 
-- `train.py`内での SageMaker Experiments の実装について，本リポジトリ上では ExperimentsName 並びに RunName をトレーニングジョブ内のスクリプトに明示的に指定することで，`run_job.py`上で作成した Run を利用して記録するようにしているが，公式の実装例[^6]でも問題なく記録することが可能．具体的な実装例は以下．
+- `train.py`内での SageMaker Experiments の実装について，本リポジトリ上では ExperimentsName 並びに RunName をトレーニングジョブ内のスクリプトに明示的に指定することで，`run_job.py`上で作成した Run を利用して記録するようにしているが，公式の実装例[^3-3]でも問題なく記録することが可能である．以下に具体的な実装例を示す．
 
 ```py
 import boto3
@@ -301,7 +305,7 @@ with load_run(sagemaker_session=session) as run:
 
 - 現時点（2024/03/25）では，`run_job.py`上で作成した Run 上に，`train.py`上のメトリクスを記録できない．`train.py`上で別の Run が作成され，その中にメトリクスが保存されることを確認している．（つまり，`run_job.py`上で作成される Run にはハイパラやインスタンス情報が，`train.py`上で作成される Run にはメトリクスが保存される．この事象は仕様なのか現在サポートに問い合わせているが，恐らく改善されるのではないかと思っている．）
 
-- `train.py`の実装については，[^1-3] [^1-4] [^7] を参考にし，改良している．末尾ではあるが，ここで感謝申し上げたい．
+- `train.py`の実装については，[^1-3] [^1-4] [^3-4] を参考にし，改良している．末尾ではあるが，ここで感謝申し上げたい．
 
 ## References <!-- omit in toc -->
 
@@ -309,13 +313,14 @@ with load_run(sagemaker_session=session) as run:
 [^1-2]: [sagemaker/sagemaker-experiments/pytorch_mnist/src/mnist_train.py](https://github.com/aws-samples/aws-ml-jp/blob/main/sagemaker/sagemaker-experiments/pytorch_mnist/src/mnist_train.py)
 [^1-3]: [sagemaker/sagemaker-training/tutorial/2_2_rewriting_traing_code_for_sagemaker_pytorch.ipynb](https://github.com/aws-samples/aws-ml-jp/blob/main/sagemaker/sagemaker-training/tutorial/2_2_rewriting_traing_code_for_sagemaker_pytorch.ipynb)
 [^1-4]: [sagemaker/sagemaker-experiments/pytorch_mnist/pytorch_mnist.ipynb](https://github.com/aws-samples/aws-ml-jp/blob/main/sagemaker/sagemaker-experiments/pytorch_mnist/pytorch_mnist.ipynb)
-[^2]: [ENVIRONMENT_VARIABLES.md ](https://github.com/aws/sagemaker-training-toolkit/blob/master/ENVIRONMENT_VARIABLES.md)
-[^3]: [SageMaker Training Toolkit - ENVIRONMENT_VARIABLES.md 日本語版](https://zenn.dev/kmotohas/articles/7bfe313eab01ea)
-[^4]: [Amazon SageMaker Experiments > Experiments](https://sagemaker.readthedocs.io/en/stable/experiments/sagemaker.experiments.html)
-[^5]: [Next generation Amazon SageMaker Experiments – Organize, track, and compare your machine learning trainings at scale](https://aws.amazon.com/jp/blogs/machine-learning/next-generation-amazon-sagemaker-experiments-organize-track-and-compare-your-machine-learning-trainings-at-scale/)
-[^6]: [Track an experiment while training a Pytorch model with a SageMaker Training Job](https://sagemaker-examples.readthedocs.io/en/latest/sagemaker-experiments/sagemaker_job_tracking/pytorch_script_mode_training_job.html)
-[^7]: [新しくなった Amazon SageMaker Experiments で実験管理](https://qiita.com/mariohcat/items/9fde1b04c0ecf439d427)
-[^8]: [Training APIs > Estimators](https://sagemaker.readthedocs.io/en/stable/api/training/estimators.html)
-[^9]: [Choose the best data source for your Amazon SageMaker training job](https://aws.amazon.com/jp/blogs/machine-learning/choose-the-best-data-source-for-your-amazon-sagemaker-training-job/)
-[^10]: [Train Using SageMaker Managed Warm Pools](https://docs.aws.amazon.com/sagemaker/latest/dg/train-warm-pools.html)
-[^20]: [Amazon SageMaker endpoints and quotas](https://docs.aws.amazon.com/general/latest/gr/sagemaker.html)
+[^2-1]: [ENVIRONMENT_VARIABLES.md ](https://github.com/aws/sagemaker-training-toolkit/blob/master/ENVIRONMENT_VARIABLES.md)
+[^2-2]: [SageMaker Training Toolkit - ENVIRONMENT_VARIABLES.md 日本語版](https://zenn.dev/kmotohas/articles/7bfe313eab01ea)
+[^3-1]: [Amazon SageMaker Experiments > Experiments](https://sagemaker.readthedocs.io/en/stable/experiments/sagemaker.experiments.html)
+[^3-2]: [Next generation Amazon SageMaker Experiments – Organize, track, and compare your machine learning trainings at scale](https://aws.amazon.com/jp/blogs/machine-learning/next-generation-amazon-sagemaker-experiments-organize-track-and-compare-your-machine-learning-trainings-at-scale/)
+[^3-3]: [Track an experiment while training a Pytorch model with a SageMaker Training Job](https://sagemaker-examples.readthedocs.io/en/latest/sagemaker-experiments/sagemaker_job_tracking/pytorch_script_mode_training_job.html)
+[^3-4]: [新しくなった Amazon SageMaker Experiments で実験管理](https://qiita.com/mariohcat/items/9fde1b04c0ecf439d427)
+[^4-1]: [Training APIs > Estimators](https://sagemaker.readthedocs.io/en/stable/api/training/estimators.html)
+[^4-2]: [Choose the best data source for your Amazon SageMaker training job](https://aws.amazon.com/jp/blogs/machine-learning/choose-the-best-data-source-for-your-amazon-sagemaker-training-job/)
+[^5-1]: [Train Using SageMaker Managed Warm Pools](https://docs.aws.amazon.com/sagemaker/latest/dg/train-warm-pools.html)
+[^5-2]: [Use Managed Spot Training in Amazon SageMaker](https://docs.aws.amazon.com/ja_jp/sagemaker/latest/dg/model-managed-spot-training.html)
+[^5-3]: [Amazon SageMaker endpoints and quotas](https://docs.aws.amazon.com/general/latest/gr/sagemaker.html)
