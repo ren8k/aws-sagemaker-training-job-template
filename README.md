@@ -44,17 +44,17 @@ Amazon SageMaker Training Job とは，① 用意したコードを ② 用意�
 
 ## 目的
 
-業務における機械学習の PoC や Kaggle において，ローカル上で開発した学習コードを迅速かつ容易に SageMaker Training Job として実行可能な Python コードを作成し，再利用可能なようにテンプレートとして整備する．また，テンプレート内に具体的な実装例を含め，SageMaker Training Job や SageMaker Experiments の利用方法を解説することも目的としている．本テンプレートを利用することにより，初学者が SageMaker 上での学習・実験管理を行えるようになることを狙いとしている．
+業務における機械学習の PoC や Kaggle において，ローカル上で開発した学習コードを迅速かつ容易に SageMaker Training Job として実行可能な Python コードを作成し，再利用可能なようにテンプレートとして整備する．また，テンプレート内に MNIST データセットを利用した具体的な実装例を含め，SageMaker Training Job や SageMaker Experiments の利用方法を解説することも目的としている．本テンプレートを利用することにより，初学者が SageMaker 上での学習・実験管理を行えるようになることを狙いとしている．
 
 ## オリジナリティ
 
-- ローカル・SageMaker Training Job 問わず，修正無しに実行可能な学習スクリプト(`train.py`)の実装例を紹介している
-  - SageMaker Experiments の利用方法も紹介している
-- Training Job を実行するための Python コード(`scripts/run_job.py`)を作成している
+- Training Job を容易に実行するための Python コード(`scripts/run_job.py`)を作成している
   - `train.py` のハイパーパラメータを外部の yaml ファイルで管理し，それを読み込み training job に渡すように工夫している
-- SageMaker Training Job 実行後に以下を自動ダウンロードしている．
+- SageMaker Training Job 実行後に以下を自動ダウンロードしている
   - 学習済みモデル
   - CloudWatch Logs の実行ログ（失敗時には原因究明がスムーズになる）
+- ローカル・SageMaker Training Job 問わず，修正無しに実行可能な学習スクリプト(`train.py`)の実装例を紹介している
+  - SageMaker Experiments の利用方法も紹介している
 
 ## 前提
 
@@ -163,7 +163,7 @@ parser.add_argument(
 )
 ```
 
-前述の`SM_CHANNEL_TRAINING`と同様に，コンテナ上の環境変数`SM_MODEL_DIR`，`SM_OUTPUT_DATA_DIR`には，それぞれ`/opt/ml/model`，`/opt/ml/output`が格納されており，Training Job 終了後に S3 に自動で保存される仕様である．前述のディレクトリ以外は，Training Job 終了時に全て削除されるため，Job 実行時に生成されるモデルの重みファイルは`/opt/ml/model`に，その他ファイルは`/opt/ml/output`に保存すると良い．
+前述の`SM_CHANNEL_TRAINING`と同様に，コンテナ上の環境変数`SM_MODEL_DIR`，`SM_OUTPUT_DATA_DIR`には，それぞれ`/opt/ml/model`，`/opt/ml/output`が格納されており，Training Job 終了後に各々のディレクトリに保存されたデータが S3 に自動で転送・保存される仕様である．前述のディレクトリ以外は，Training Job 終了時に全て削除されるため，Job 実行時に生成されるモデルの重みファイルは`/opt/ml/model`に，その他ファイルは`/opt/ml/output`に保存すると良い．
 
 #### SageMaker Experiments の利用設定（任意）
 
@@ -299,7 +299,9 @@ with load_run(sagemaker_session=session) as run:
     train(args, run)
 ```
 
-- 現時点（2024/03/25）では，`run_job.py`上で作成した Run 上に，`train.py`上のメトリクスを記録できない．
+- 現時点（2024/03/25）では，`run_job.py`上で作成した Run 上に，`train.py`上のメトリクスを記録できない．`train.py`上で別の Run が作成され，その中にメトリクスが保存されることを確認している．（つまり，`run_job.py`上で作成される Run にはハイパラやインスタンス情報が，`train.py`上で作成される Run にはメトリクスが保存される．この事象は仕様なのか現在サポートに問い合わせているが，恐らく改善されるのではないかと思っている．）
+
+- `train.py`の実装については，[^1-3] [^1-4] [^7] を参考にし，改良している．末尾ではあるが，ここで感謝申し上げたい．
 
 ## References <!-- omit in toc -->
 
