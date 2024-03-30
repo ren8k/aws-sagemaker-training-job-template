@@ -94,7 +94,7 @@ Amazon SageMaker Training Job とは，① 用意したコードを ② 用意�
 
 ## 手順
 
-以下に，本テンプレートを利用して，ローカルで動作確認を行った ML コードをシームレスに SageMaker Training Job で実行するための手順を示す．
+本テンプレートを利用して，学習スクリプトを SageMaker Training Job で実行するための手順を以下に示す．
 
 - データセットの準備と S3 へのアップロード
 - 学習スクリプト（`train.py`）および依存関係ファイルを用意
