@@ -1,29 +1,25 @@
 # aws-sagemaker-training-job-template <!-- omit in toc -->
 
-## はじめに <!-- omit in toc -->
+本リポジトリでは，SageMaker Training Job を利用した機械学習コードの実行と実験管理を容易に行うためのテンプレートとその利用手順を示す．テンプレート内では，[MNIST データを題材としたサンプルコード](https://github.com/Renya-Kujirada/aws-sagemaker-training-job-template/blob/main/src/train.py)を用意しており，ローカルで実行している機械学習コードを最小限の修正で SageMaker Training Job として実行し，実験管理を行うための方法を解説している．併せて，[サンプルコードを SageMaker Studio などでクイックに実行するための手順書](https://github.com/Renya-Kujirada/aws-sagemaker-training-job-template/blob/main/docs)も整備しているため参照されたい．
 
-Amazon SageMaker Training とは，① 用意したコードを ② 用意したデータと ③ 用意した環境で実行してくれ，④ 結果を自動で保存してくれる，バッチ処理サービスである．[^1]
-
-mnist を題材に，train.py をローカル，および sagemaker 上で実行できるコードを紹介する．
-併せて，実験管理も行えるようにする．
-
-MLOps の文脈等で実験管理は利用されがちだが，PoC でも使いたい．
-
-可能な限り，写真を交えた解説も行う．
-
-- 自分用の sagemaker training job 実行テンプレートを作成したかった
-- sagemaker experiments のサンプルコードが少ない
+本テンプレートは，筆者が実務や Kaggle などでの SageMaker の利用経験を基に作成しており，ローカル，または SageMaker Training Job のどちらでも同一のコードで動作可能な状態にする方法についても述べている．
 
 ## TL;DR <!-- omit in toc -->
+
+SageMaker Training Job を実行可能なコードテンプレートを Python コードベースで作成した．本テンプレートを利用することで，以下の機能を迅速かつ容易に利用することができる．
+
+- SageMaker Training Job の実行（オプション指定可能）
+- SageMaker Experiments を利用した実験管理
+- Training Job 実行後，モデルおよびログの自動ダウンロード
 
 ## 目次 <!-- omit in toc -->
 
 - [背景と課題](#背景と課題)
-- [目的・解決方法](#目的解決方法)
+- [目的](#目的)
 - [オリジナリティ](#オリジナリティ)
 - [前提](#前提)
   - [環境](#環境)
-  - [ディレクトリ](#ディレクトリ)
+  - [ディレクトリ構成](#ディレクトリ構成)
   - [コード](#コード)
 - [手順](#手順)
 - [手順の各ステップの詳細](#手順の各ステップの詳細)
@@ -32,7 +28,7 @@ MLOps の文脈等で実験管理は利用されがちだが，PoC でも使い�
     - [データセットを格納しているディレクトリの設定](#データセットを格納しているディレクトリの設定)
     - [アーティファクト（モデル，メトリクス等）の保存先の設定](#アーティファクトモデルメトリクス等の保存先の設定)
     - [SageMaker Experiments の利用設定（任意）](#sagemaker-experiments-の利用設定任意)
-  - [Local 上での動作確認](#local-上での動作確認)
+  - [ローカル上での動作確認](#ローカル上での動作確認)
   - [ハイパーパラメーターを定義した yaml ファイルを`config`ディレクトリに格納](#ハイパーパラメーターを定義した-yaml-ファイルをconfigディレクトリに格納)
   - [Training Job を実行し，作成されたモデル・CloudWatch Logs を自動ダウンロード](#training-job-を実行し作成されたモデルcloudwatch-logs-を自動ダウンロード)
     - [`run_job.py`の概要](#run_jobpyの概要)
@@ -42,18 +38,23 @@ MLOps の文脈等で実験管理は利用されがちだが，PoC でも使い�
 
 ## 背景と課題
 
-## 目的・解決方法
+Amazon SageMaker Training Job とは，① 用意したコードを ② 用意したデータと ③ 用意した環境で実行し，④ 結果を自動で保存するバッチ処理サービスである[^1-1]．SageMaker Training Job を利用することで，データサイエンティストは学習に必要なインフラ管理から開放され，機械学習のコード開発に注力することができる．また，SageMaker Training Job では，SageMaker Experiments という機能を利用することで，WandB や MLflow のような実験管理が容易に実現可能になる．通常，機械学習コードの開発初期はローカルで動作確認などを行い，ハイパーパラメーターチューニングや複数設定での比較実験などで SageMaker Training Job, Experiments を利用するケースが多い．
+
+初学者にとって，ローカルで実行していた学習コードを SageMaker Training Job で動作するように修正することは，少々難しいように思われる．その理由としては，実務や Kaggle などの機械学習プロジェクトで即時転用可能な，Training Job の**Python コードベース**の実装例が少ないことが挙げられる．（AWS 公式リポジトリでは，Jupyter Notebook での解説コードは豊富に存在する．[^1-2] [^1-3] [^1-4]）加え，SageMaker Training Job 中で，SageMaker Experiments による実験管理を行うための実装例は非常に少ない．
+
+## 目的
+
+業務における機械学習の PoC や Kaggle において，ローカル上で開発した学習コードを迅速かつ容易に SageMaker Training Job として実行可能な Python コードを作成し，再利用可能なようにテンプレートとして整備する．また，テンプレート内に具体的な実装例を含め，SageMaker Training Job や SageMaker Experiments の利用方法を解説することも目的としている．本テンプレートを利用することにより，初学者が SageMaker 上での学習・実験管理を行えるようになることを狙いとしている．
 
 ## オリジナリティ
 
-- ローカルでも SageMaker Training Job 上でもコードの改修無しに実行できるようにしている
-- sagemaker training job を実際に実行しやすく整備したコード例が少なかった
-  - train.py の hp を外部 yaml で管理し，それを読み込み training job に渡すように工夫している
-- sagemaker experimtents を実際に適用したコード例が少ない
-  - ローカルでも問題なく実行可能なように記述している
-- SageMaker Training Job 実行後に学習済みモデルを自動取得するようにしている
-- SageMaker Training Job の実行ログを成功失敗問わず自動取得するようにしている
-  - 失敗時には原因究明がスムーズになる
+- ローカル・SageMaker Training Job 問わず，修正無しに実行可能な学習スクリプト(`train.py`)の実装例を紹介している
+  - SageMaker Experiments の利用方法も紹介している
+- Training Job を実行するための Python コード(`scripts/run_job.py`)を作成している
+  - `train.py` のハイパーパラメータを外部の yaml ファイルで管理し，それを読み込み training job に渡すように工夫している
+- SageMaker Training Job 実行後に以下を自動ダウンロードしている．
+  - 学習済みモデル
+  - CloudWatch Logs の実行ログ（失敗時には原因究明がスムーズになる）
 
 ## 前提
 
@@ -64,18 +65,18 @@ MLOps の文脈等で実験管理は利用されがちだが，PoC でも使い�
 - 機械学習フレームワークとして PyTorch の利用を想定している．
   - 勿論，TensorFlow，MXNet，HuggingFace などにも対応させることも可能．（`scripts/run_job.py` を修正する必要あり）
 
-### ディレクトリ
+### ディレクトリ構成
 
-本リポジトリは，以下のディレクトリ構成を想定している．
+本リポジトリは，以下のディレクトリ構成を想定している．`src`ディレクトリに学習スクリプト（`train.py`）を格納し，`scripts/run_job.py`によって`train.py`を SageMaker Training Job で実行する想定である．また，ローカル上で`train.py`を実行する際のデータセットの格納先は，`dataset`ディレクトリを想定している．
 
 ```
 .
 ├── config      :   学習スクリプトのハイパーパラメーターを定義したyamlを格納
-├── dataset     :   Localで学習スクリプトを実行する際に利用するデータセットを格納
+├── dataset     :   ローカルで学習スクリプトを実行する際に利用するデータセットを格納
 ├── rawdata     :   Rawデータを格納（任意）
 ├── result
 │   ├── model   :   Training Job実行後にモデルを自動ダウンロード（格納）
-│   └── output  :   Localで学習スクリプトを実行する際に利用するデータ保存先
+│   └── output  :   ローカルで学習スクリプトを実行する際に利用するデータ保存先
 ├── scripts     :   Training Job実行用のスクリプトを格納
 └── src         :   学習スクリプトを格納
 ```
@@ -127,7 +128,7 @@ SageMaker Training Job で`train.py`を実行するために留意すべき点�
 - データセットを格納しているディレクトリの設定
 - アーティファクト（モデル，メトリクス等）の保存先の設定
 - SageMaker Experiments の利用設定（任意）
-- Local 上での動作確認
+- ローカル上での動作確認
 
 以下，具体的な修正点を簡易解説する．
 
@@ -192,11 +193,11 @@ run.log_metric(name="test:accuracy", value=accuracy, step=epoch)
 
 のように記述すると良い．詳細については，公式ドキュメント[^4][^5][^6]やブログ[^7]を参考にされたい．
 
-なお，本リポジトリ上では，local 上でも SageMaker Training Job 上でも同一コードで動作させるために，local 実行の場合は明示的に`run = None`としており，run によって，API を実行するか否かを自動判定させている．
+なお，本リポジトリ上では，ローカル上でも SageMaker Training Job 上でも同一コードで動作させるために，ローカル実行の場合は明示的に`run = None`としており，run によって，API を実行するか否かを自動判定させている．
 
-### Local 上での動作確認
+### ローカル上での動作確認
 
-SageMaker Training Job を実行する前に，SageMaker Training Job を模して Local で動作確認を行うことは，実験効率の観点で重要である．Training Job を実行する際，Job 実行用のインスタンス・コンテナ起動時間などの待ち時間が発生するためである．以下のような shell を作成し，実際に実行してみることを推奨する（本リポジトリでは，`src`ディレクトリ内に`train.sh`という shell を用意している）．
+SageMaker Training Job を実行する前に，SageMaker Training Job を模して ローカルで動作確認を行うことは，実験効率の観点で重要である．Training Job を実行する際，Job 実行用のインスタンス・コンテナ起動時間などの待ち時間が発生するためである．以下のような shell を作成し，実際に実行してみることを推奨する（本リポジトリでは，`src`ディレクトリ内に`train.sh`という shell を用意している）．
 
 ```sh
 #!/bin/bash
@@ -302,7 +303,10 @@ with load_run(sagemaker_session=session) as run:
 
 ## reference <!-- omit in toc -->
 
-[^1]: [エンジニア目線で始める Amazon SageMaker Training ① 機械学習を使わないはじめての Training Job](https://qiita.com/kazuneet/items/795e561efce8c874d115)
+[^1-1]: [エンジニア目線で始める Amazon SageMaker Training ① 機械学習を使わないはじめての Training Job](https://qiita.com/kazuneet/items/795e561efce8c874d115)
+[^1-2]: [sagemaker/sagemaker-experiments/pytorch_mnist/src/mnist_train.py](https://github.com/aws-samples/aws-ml-jp/blob/main/sagemaker/sagemaker-experiments/pytorch_mnist/src/mnist_train.py)
+[^1-3]: [sagemaker/sagemaker-training/tutorial/2_2_rewriting_traing_code_for_sagemaker_pytorch.ipynb](https://github.com/aws-samples/aws-ml-jp/blob/main/sagemaker/sagemaker-training/tutorial/2_2_rewriting_traing_code_for_sagemaker_pytorch.ipynb)
+[^1-4]: [sagemaker/sagemaker-experiments/pytorch_mnist/pytorch_mnist.ipynb](https://github.com/aws-samples/aws-ml-jp/blob/main/sagemaker/sagemaker-experiments/pytorch_mnist/pytorch_mnist.ipynb)
 [^2]: [ENVIRONMENT_VARIABLES.md ](https://github.com/aws/sagemaker-training-toolkit/blob/master/ENVIRONMENT_VARIABLES.md)
 [^3]: [SageMaker Training Toolkit - ENVIRONMENT_VARIABLES.md 日本語版](https://zenn.dev/kmotohas/articles/7bfe313eab01ea)
 [^4]: [Amazon SageMaker Experiments > Experiments](https://sagemaker.readthedocs.io/en/stable/experiments/sagemaker.experiments.html)
@@ -323,10 +327,6 @@ with load_run(sagemaker_session=session) as run:
 ### sagemaker training job <!-- omit in toc -->
 
 #### official <!-- omit in toc -->
-
-- [sagemaker/sagemaker-experiments/pytorch_mnist/src/mnist_train.py](https://github.com/aws-samples/aws-ml-jp/blob/main/sagemaker/sagemaker-experiments/pytorch_mnist/src/mnist_train.py)
-- [sagemaker/sagemaker-training/tutorial/2_2_rewriting_traing_code_for_sagemaker_pytorch.ipynb](https://github.com/aws-samples/aws-ml-jp/blob/main/sagemaker/sagemaker-training/tutorial/2_2_rewriting_traing_code_for_sagemaker_pytorch.ipynb)
-- [sagemaker/sagemaker-experiments/pytorch_mnist/pytorch_mnist.ipynb](https://github.com/aws-samples/aws-ml-jp/blob/main/sagemaker/sagemaker-experiments/pytorch_mnist/pytorch_mnist.ipynb)
 
 #### blog <!-- omit in toc -->
 
