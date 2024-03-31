@@ -35,12 +35,15 @@ SageMaker Training Job を実行可能なコードテンプレートを Python �
     - [実行方法](#実行方法)
     - [Training Job の実行結果の保存先](#training-job-の実行結果の保存先)
 - [Tips](#tips)
+  - [Training Job 実行環境について](#training-job-実行環境について)
+  - [Training Job の設定について](#training-job-の設定について)
+  - [Experiments について](#experiments-について)
 
 ## 背景と課題
 
-Amazon SageMaker Training Job とは，① 用意したコードを ② 用意したデータと ③ 用意した環境で実行し，④ 結果を自動で保存するバッチ処理サービスである[^1-1]．SageMaker Training Job を利用することで，データサイエンティストは学習に必要なインフラ管理から開放され，機械学習のコード開発に注力することができる．また，SageMaker Training Job では，SageMaker Experiments という機能を利用することで，WandB や MLflow のような実験管理が容易に実現可能になる．通常，機械学習コードの開発初期はローカルで動作確認などを行い，ハイパーパラメーターチューニングや複数設定での比較実験などで SageMaker Training Job, Experiments を利用するケースが多い．
+Amazon SageMaker Training Job とは，① 用意したコードを ② 用意したデータと ③ 用意した環境で実行し，④ 結果を自動で保存するバッチ処理サービスである[^1-1]．SageMaker Training Job を利用することで，データサイエンティストは学習に必要なインフラ管理から解放され，機械学習のコード開発に注力することができる．また，SageMaker Training Job では，SageMaker Experiments という機能を利用することで，WandB や MLflow のような実験管理が容易に実現可能になる．通常，機械学習コードの開発初期はローカルで動作確認などを行い，ハイパーパラメーターチューニングや複数設定での比較実験などで SageMaker Training Job, Experiments を利用するケースが多い．
 
-初学者にとって，ローカルで実行していた学習コードを SageMaker Training Job で動作するように修正し，Training Job を実験管理機能含め活用することは，少々難しいように思われる．その理由としては，実務や Kaggle などの機械学習プロジェクトで即時転用可能な，Training Job の**Python スクリプトベース**の実装例が少ないことが挙げられる．（AWS 公式リポジトリでは，Jupyter Notebook ベースでの解説コードは豊富に存在する．[^1-2] [^1-3] [^1-4]）加え，SageMaker Training Job 中で，SageMaker Experiments による実験管理を行うための実装例は非常に少ない．
+初学者にとって，ローカルで実行していた学習コードを SageMaker Training Job で動作するように修正し，Training Job を実験管理機能を含めて活用することは，少々難しいように思われる．その理由としては，実務や Kaggle などの機械学習プロジェクトで即時転用可能な，Training Job の**Python スクリプトベース**の実装例が少ないことが挙げられる．（AWS 公式リポジトリでは，**Jupyter Notebook ベース**の解説コードは豊富に存在する．[^1-2] [^1-3] [^1-4]）加え，SageMaker Training Job 中で，SageMaker Experiments による実験管理を行うための実装例は非常に少ない．
 
 ## 目的
 
@@ -195,6 +198,8 @@ run.log_metric(name="test:accuracy", value=accuracy, step=epoch)
 
 なお，本リポジトリ上では，ローカル上でも SageMaker Training Job 上でも同一コードで動作させるために，ローカル実行の場合は明示的に`run = None`としており，run によって，API を実行するか否かを自動判定させている．
 
+SageMaker Studio における SageMaker Experiments の UI については，Tips の章にて紹介するので参照されたい．
+
 ### ローカル上での動作確認
 
 SageMaker Training Job を実行する前に，SageMaker Training Job を模して ローカルで動作確認を行うことは，実験効率の観点で重要である．Training Job を実行する際，Job 実行用のインスタンス・コンテナ起動時間などの待ち時間が発生するためである．以下のような shell を作成し，実際に実行してみることを推奨する（本リポジトリでは，`src`ディレクトリ内に`train.sh`という shell スクリプトを用意している）．
@@ -280,13 +285,30 @@ Training Job 実行に伴い作成される SageMaker Experiments Run 名，S3 �
 
 ## Tips
 
+### Training Job 実行環境について
+
 - ローカルで学習スクリプトを開発する際，可能な限り SageMaker Training Job の実行環境と統一することが望ましい．これを実現するため，[AWS Deep Learning Containers (DLCs)](https://github.com/aws/deep-learning-containers/blob/master/available_images.md)のイメージを利用した Docker Container 上で開発すると良い．[DLCs のコンテナを EC2 上で立て，VSCode で開発する方法を解説したリポジトリ](https://github.com/Renya-Kujirada/aws-ec2-devkit-vscode/blob/main/README.md)があるので，詳細はそちらを参照されたい．
 
-- `run_job.py`では，Training Job で`SageMaker managed warm pools`を利用する前提である．本機能は，Training Job を実行後，その際に使用したインスタンスを停止せずに保持しておき，待ち時間無く Training Job を再実行可能な機能である（保持中は課金されることに注意）．Warm pool を使用する場合，インスタンスタイプごとに上限緩和申請が必要である．詳細は[^5-1]を参照されたい．
+### Training Job の設定について
 
-- `run_job.py`では，引数`--use-spot`を指定することで，Training Job でスポットインスタンス[^5-2]を利用することが可能である．スポットインスタンスを利用することで，70%〜90%のコスト削減を見込める．個人的な感覚では，待ち時間もオンデマンドインスタンスとほぼ変わらない印象である．Training Job 内部で複数回動作確認を行いたい場合は Warm Pool を，その他の場合はスポットインスタンスを利用することを推奨する（勿論，学習を止めたくない場合や待ち時間が長い場合はオンデマンドインスタンスを利用したほうが良い）．
+- `run_job.py`では，Training Job で`SageMaker Managed Warm Pools`[^5-1]を利用する前提である．本機能は，Training Job を実行後，その際に使用したインスタンスを停止せずに保持しておき，待ち時間無く Training Job を再実行可能な機能である（保持中は課金されることに注意）．Warm pool を使用する場合，インスタンスタイプごとに上限緩和申請が必要である．
 
-- 同一名の Experiments に紐付けられる Run の総数は 50 である（SageMaker が自動作成したものを除く）[^5-3]．50 を超えると以下のエラーが発生するため，Experiments Name を変更する必要がある．
+- `run_job.py`では，引数`--use-spot`を指定することで，Training Job でスポットインスタンス[^5-2]を利用することが可能である．スポットインスタンスを利用することで，70%〜90%のコスト削減を見込める．個人的な感覚では，待ち時間はオンデマンドインスタンスとほぼ変わらない印象である．Training Job 内部で複数回動作確認を行いたい場合は Warm Pool を，その他の場合はスポットインスタンスを利用することを推奨する（勿論，学習を止めたくない場合や待ち時間が長い場合はオンデマンドインスタンスを利用したほうが良い）．
+
+### Experiments について
+
+- 現時点（2024/03/31）では，SageMaker Experiments を利用したロギング結果は，SageMaker Studio Classic 上で確認できる[^5-3]．SageMaker Studio では確認できないことに注意されたい（同様に SageMaker Jumpstart，SageMaker MLOps Template も同様に Classic からのみ利用可能）．
+
+- SageMaker Studio Classic 上での Experiments の UI は以下である．以下では，`mnistv2`という Experiment の中に`run-2024-03-31-13-33-39`という Run が存在しており，その中で学習コード上のメトリクスが記録されていることを確認できる．
+
+  <img src="./imgs/sm_exp_1.png" width="800">
+  <img src="./imgs/sm_exp_2.png" width="800">
+
+- 現時点（2024/03/31）では，`run_job.py`上で作成した Run 上に`train.py`上のメトリクスを記録できない．`train.py`上で別の Run が作成され，その中にメトリクスが保存されることを確認している．（つまり，`run_job.py`上で作成される Run には以下のようにハイパラやインスタンス情報が，`train.py`上で作成される Run にはメトリクスが保存される．この事象は仕様なのか現在サポートに問い合わせているが，恐らく改善されるのではないかと思っている．）
+
+  <img src="./imgs/sm_exp_3.png" width="800">
+
+- 同一名の Experiments に紐付けられる Run の総数は 50 である（SageMaker が自動作成したものを除く）[^5-4]．50 を超えると以下のエラーが発生するため，Experiments Name を変更する必要がある．
 
 ```
 botocore.errorfactory.ResourceLimitExceeded: An error occurred (ResourceLimitExceeded) when calling the AssociateTrialComponent operation: The account-level service limit 'Total number of trial components allowed in a single trial, excluding those automatically created by SageMaker' is 50 Trial Components, with current utilization of 0 Trial Components and a request delta of 51 Trial Components. Please use AWS Service Quotas to request an increase for this quota. If AWS Service Quotas is not available, contact AWS support to request an increase for this quota.
@@ -302,8 +324,6 @@ session = Session(boto3.session.Session(region_name="ap-northeast-1"))
 with load_run(sagemaker_session=session) as run:
     train(args, run)
 ```
-
-- 現時点（2024/03/25）では，`run_job.py`上で作成した Run 上に，`train.py`上のメトリクスを記録できない．`train.py`上で別の Run が作成され，その中にメトリクスが保存されることを確認している．（つまり，`run_job.py`上で作成される Run にはハイパラやインスタンス情報が，`train.py`上で作成される Run にはメトリクスが保存される．この事象は仕様なのか現在サポートに問い合わせているが，恐らく改善されるのではないかと思っている．）
 
 - `train.py`の実装については，[^1-3] [^1-4] [^3-4] を参考にし，改良している．末尾ではあるが，ここで感謝申し上げたい．
 
@@ -323,4 +343,5 @@ with load_run(sagemaker_session=session) as run:
 [^4-2]: [Choose the best data source for your Amazon SageMaker training job](https://aws.amazon.com/jp/blogs/machine-learning/choose-the-best-data-source-for-your-amazon-sagemaker-training-job/)
 [^5-1]: [Train Using SageMaker Managed Warm Pools](https://docs.aws.amazon.com/sagemaker/latest/dg/train-warm-pools.html)
 [^5-2]: [Use Managed Spot Training in Amazon SageMaker](https://docs.aws.amazon.com/ja_jp/sagemaker/latest/dg/model-managed-spot-training.html)
-[^5-3]: [Amazon SageMaker endpoints and quotas](https://docs.aws.amazon.com/general/latest/gr/sagemaker.html)
+[^5-3]: [https://docs.aws.amazon.com/sagemaker/latest/dg/experiments.html](https://docs.aws.amazon.com/ja_jp/sagemaker/latest/dg/experiments.html)
+[^5-4]: [Amazon SageMaker endpoints and quotas](https://docs.aws.amazon.com/general/latest/gr/sagemaker.html)
