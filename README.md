@@ -302,12 +302,12 @@ Training Job 実行に伴い作成される SageMaker Experiments 名および R
 
 - SageMaker Studio Classic 上での Experiments の UI を以下に示す．以下の例では，`mnistv2`という Experiment の中に`run-2024-03-31-13-33-39`という Run が存在しており，その中で学習コード上のメトリクスが記録されていることを確認できる．
 
-  <img src="./imgs/sm_exp_1.png" width="800">
-  <img src="./imgs/sm_exp_2.png" width="800">
+  <img src="./assets/sm_exp_1.png" width="800">
+  <img src="./assets/sm_exp_2.png" width="800">
 
 - 現時点（2024/03/31）では，`run_job.py`上で作成した Run 上に`train.py`上のメトリクスを記録できない．`train.py`上で別の Run が作成され，その中にメトリクスが保存されることを確認している．（つまり，`run_job.py`上で作成される Run には以下のようにハイパラやインスタンス情報が，`train.py`上で作成される Run にはメトリクスが保存される．この事象は仕様なのか現在サポートに問い合わせているが，恐らく改善されるのではないかと思っている．）
 
-  <img src="./imgs/sm_exp_3.png" width="800">
+  <img src="./assets/sm_exp_3.png" width="800">
 
 - 同一名の Experiments に紐付けられる Run の総数は 50 である（SageMaker が自動作成したものを除く）[^5-4]．50 を超えると以下のエラーが発生するため，Experiments Name を変更する必要がある．
 
