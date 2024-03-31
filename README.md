@@ -2,7 +2,7 @@
 
 本リポジトリでは，SageMaker Training Job を利用した機械学習コードの実行と実験管理を容易に行うためのテンプレートとその利用手順を示す．テンプレート内では，[MNIST データを題材としたサンプルコード](https://github.com/Renya-Kujirada/aws-sagemaker-training-job-template/blob/main/src/train.py)を用意しており，ローカルで実行している機械学習コードを最小限の修正で SageMaker Training Job として実行し，実験管理を行うための方法を解説している．併せて，[サンプルコードを SageMaker Studio などでクイックに実行するための手順書](https://github.com/Renya-Kujirada/aws-sagemaker-training-job-template/blob/main/docs/quickstart.md)も整備しているため参照されたい．
 
-本テンプレートは，筆者が実務や Kaggle などでの SageMaker の利用経験を基に作成しており，ローカル，または SageMaker Training Job のどちらでも同一のコードで動作可能な状態にする方法についても述べている．
+本テンプレートは，筆者が実務や Kaggle などでの SageMaker の利用経験を基に作成しており，ローカルで開発した学習コードをスムーズに SageMaker Training Job で利用できるようにすることを主眼としている．また，ローカル上または SageMaker Training Job 上どちらに対しても同一の学習コードで動作可能な状態にする方法についても述べている．
 
 ## TL;DR <!-- omit in toc -->
 
@@ -40,15 +40,15 @@ SageMaker Training Job を実行可能なコードテンプレートを Python �
 
 Amazon SageMaker Training Job とは，① 用意したコードを ② 用意したデータと ③ 用意した環境で実行し，④ 結果を自動で保存するバッチ処理サービスである[^1-1]．SageMaker Training Job を利用することで，データサイエンティストは学習に必要なインフラ管理から開放され，機械学習のコード開発に注力することができる．また，SageMaker Training Job では，SageMaker Experiments という機能を利用することで，WandB や MLflow のような実験管理が容易に実現可能になる．通常，機械学習コードの開発初期はローカルで動作確認などを行い，ハイパーパラメーターチューニングや複数設定での比較実験などで SageMaker Training Job, Experiments を利用するケースが多い．
 
-初学者にとって，ローカルで実行していた学習コードを SageMaker Training Job で動作するように修正することは，少々難しいように思われる．その理由としては，実務や Kaggle などの機械学習プロジェクトで即時転用可能な，Training Job の**Python コードベース**の実装例が少ないことが挙げられる．（AWS 公式リポジトリでは，Jupyter Notebook での解説コードは豊富に存在する．[^1-2] [^1-3] [^1-4]）加え，SageMaker Training Job 中で，SageMaker Experiments による実験管理を行うための実装例は非常に少ない．
+初学者にとって，ローカルで実行していた学習コードを SageMaker Training Job で動作するように修正し，Training Job を実験管理機能含め活用することは，少々難しいように思われる．その理由としては，実務や Kaggle などの機械学習プロジェクトで即時転用可能な，Training Job の**Python スクリプトベース**の実装例が少ないことが挙げられる．（AWS 公式リポジトリでは，Jupyter Notebook ベースでの解説コードは豊富に存在する．[^1-2] [^1-3] [^1-4]）加え，SageMaker Training Job 中で，SageMaker Experiments による実験管理を行うための実装例は非常に少ない．
 
 ## 目的
 
-業務における機械学習の PoC や Kaggle において，ローカル上で開発した学習コードを迅速かつ容易に SageMaker Training Job として実行可能な Python コードを作成し，再利用可能なようにテンプレートとして整備する．また，テンプレート内に MNIST データセットを利用した具体的な実装例を含め，SageMaker Training Job や SageMaker Experiments の利用方法を解説することも目的としている．本テンプレートを利用することにより，初学者が SageMaker 上での学習・実験管理を行えるようになることを狙いとしている．
+業務における機械学習の PoC や Kaggle において，ローカル上で開発した学習コードを迅速かつ容易に SageMaker Training Job として実行可能な Python スクリプトを作成し，再利用可能なようにテンプレートとして整備する．また，テンプレート内に MNIST データセットを利用した具体的な実装例を含め，SageMaker Training Job や SageMaker Experiments の利用方法を解説することも目的としている．本テンプレートを利用することにより，初学者が SageMaker 上での学習・実験管理を行えるようになることを狙いとしている．
 
 ## オリジナリティ
 
-- Training Job を容易に実行するための Python コード(`scripts/run_job.py`)を作成している
+- Training Job を容易に実行するための Python スクリプト(`scripts/run_job.py`)を作成している
   - `train.py` のハイパーパラメータを外部の yaml ファイルで管理し，それを読み込み training job に渡すように工夫している
 - SageMaker Training Job 実行後に以下を自動ダウンロードしている
   - 学習済みモデル
