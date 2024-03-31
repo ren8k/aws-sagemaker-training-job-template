@@ -1,6 +1,6 @@
 # クイックスタート
 
-本リポジトリのサンプルコード（[`src/train.py`](https://github.com/Renya-Kujirada/aws-sagemaker-training-job-template/blob/develop/src/train.py)）の実行手順を解説する．
+本リポジトリのサンプルコード（[`src/train.py`](https://github.com/Renya-Kujirada/aws-sagemaker-training-job-template/blob/develop/src/train.py)および[`/app/sm-train/scripts/run_job.sh`](https://github.com/Renya-Kujirada/aws-sagemaker-training-job-template/blob/main/scripts/run_job.sh)）の実行手順を解説する．
 
 ## ディレクトリ構成
 
@@ -61,7 +61,7 @@ bash train.sh
 
 ### Training Job の実行
 
-`scripts`ディレクトリに移動し，`run_job.sh`の 10 行目に，自身の AWS アカウント ID を記載する．その後，以下のコマンドを実行する．これにより，SageMaker Training Job として学習スクリプトを実行できる．アーティファクトやログは`result/model`ディレクトリに自動ダウンロードされる．
+`scripts`ディレクトリに移動し，`run_job.sh`の 10 行目に，自身の AWS アカウント ID を記載する．その後，以下のコマンドを実行する．これにより，`run_job.py`が実行され，SageMaker Training Job として学習スクリプトを実行できる．アーティファクトやログは`result/model`ディレクトリに自動ダウンロードされる．
 
 ```sh
 bash run_job.sh
