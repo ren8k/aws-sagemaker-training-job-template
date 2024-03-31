@@ -47,7 +47,7 @@ Amazon SageMaker Training Job とは，① 用意したコードを ② 用意�
 
 ## 目的
 
-業務における機械学習の PoC や Kaggle において，ローカル上で開発した学習コードを迅速かつ容易に SageMaker Training Job として実行可能な Python スクリプトを作成し，再利用可能なようにテンプレートとして整備する．また，テンプレート内に MNIST データセットを利用した具体的な実装例を含め，SageMaker Training Job や SageMaker Experiments の利用方法を解説することも目的としている．本テンプレートを利用することにより，初学者が SageMaker 上での学習・実験管理を行えるようになることを狙いとしている．
+業務における機械学習の PoC や Kaggle において，ローカル上で開発した学習コードを迅速かつ容易に SageMaker Training Job として実行可能な Python スクリプトを作成し，再利用可能なようにテンプレートとして整備する．また，テンプレート内に MNIST データセットを利用した具体的な実装例を含め，SageMaker Training Job や SageMaker Experiments の利用方法を解説することも目的としている．本テンプレートを利用することにより，初学者が SageMaker 上での学習・実験管理を行えるようになることを目指している．
 
 ## オリジナリティ
 
@@ -63,8 +63,8 @@ Amazon SageMaker Training Job とは，① 用意したコードを ② 用意�
 
 ### 環境
 
-- SageMaker Studio，または，sagemaker>=2.213.0 が install された ML 実行環境上での実行を想定している．
-  - 本リポジトリは，AWS Deep Learning Containers Images をベースとした VSCode Dev Containers 上で開発を行っている．Training Job と同一環境での Training コードの動作確認を行えるため，開発効率が良い．詳細は[VSCode Dev Containers を利用した AWS EC2 上での開発環境構築手順](https://github.com/Renya-Kujirada/aws-ec2-devkit-vscode)を参照されたい．
+- SageMaker Studio，または，sagemaker>=2.213.0 がインストールされた ML 実行環境上での実行を想定している．
+  - 本リポジトリは，[AWS Deep Learning Containers (DLCs)](https://github.com/aws/deep-learning-containers/blob/master/available_images.md)のイメージをベースとした VSCode Dev Containers 上で開発を行っている．Training Job と同一環境での Training コードの動作確認を行えるため，開発効率が良い．詳細は[VSCode Dev Containers を利用した AWS EC2 上での開発環境構築手順](https://github.com/Renya-Kujirada/aws-ec2-devkit-vscode)を参照されたい．
 - 機械学習フレームワークとして PyTorch の利用を想定している．
   - 勿論，TensorFlow，MXNet，HuggingFace などにも対応させることも可能．（`scripts/run_job.py` を修正する必要あり）
 
@@ -124,7 +124,7 @@ s3://sagemaker-{REGION}-{ACCOUNT_ID}/dataset
 
 ### 学習スクリプト（`train.py`）および依存関係ファイルを用意
 
-`train.py`，`train.py`で利用しているモジュール，および`train.py`の実行に必要な依存関係ファイル（`requirements.txt`）を`src`ディレクトリに格納する．参考のために，本リポジトリでは mnsit の画像分類のための`train.py`を作成している．
+`train.py`，`train.py`で利用しているモジュール，および`train.py`の実行に必要な依存関係ファイル（`requirements.txt`）を`src`ディレクトリに格納する．参考のために，本リポジトリでは MNIST の画像分類のための`train.py`を作成している．
 
 SageMaker Training Job で`train.py`を実行するために留意すべき点は以下である．
 
@@ -202,7 +202,7 @@ SageMaker Studio における SageMaker Experiments の UI については，Tip
 
 ### ローカル上での動作確認
 
-SageMaker Training Job を実行する前に，SageMaker Training Job を模して ローカルで動作確認を行うことは，実験効率の観点で重要である．Training Job を実行する際，Job 実行用のインスタンス・コンテナ起動時間などの待ち時間が発生するためである．以下のような shell を作成し，実際に実行してみることを推奨する（本リポジトリでは，`src`ディレクトリ内に`train.sh`という shell スクリプトを用意している）．
+SageMaker Training Job を実行する前に，SageMaker Training Job を模して ローカルで動作確認を行うことは，実験効率の観点で重要である．Training Job を実行する際，Job 実行用のインスタンス・コンテナ起動時間などの待ち時間が発生するためである．以下のような shell スクリプトを作成し，実際に実行してみることを推奨する（本リポジトリでは，`src`ディレクトリ内に`train.sh`という shell スクリプトを用意している）．
 
 ```sh
 #!/bin/bash
@@ -215,11 +215,11 @@ export SM_MODEL_DIR="../result/model"
 python train.py
 ```
 
-`bash train.sh`のように実行することで，`dataset`ディレクトリ上のデータセットを入力とし，`result/model`ディレクトリには学習後のモデルの重みファイルが，`result/output`ディレクトリにはその他ファイル（本リポジトリの`train.py`の場合，epoch 毎のメトリクスとモデルの重みファイル）が保存されることを確認できる．
+`bash train.sh`を実行することで，`dataset`ディレクトリ上のデータセットを入力とし，`result/model`ディレクトリには学習後のモデルの重みファイルが，`result/output`ディレクトリにはその他ファイル（本リポジトリの`train.py`の場合，epoch 毎のメトリクスとモデルの重みファイル）が保存されることを確認できる．
 
 ### ハイパーパラメーターを定義した yaml ファイルを`config`ディレクトリに格納
 
-`train.py`上で`argparse`で指定しているハイパーパラメーターを`exp_<3桁の実験番号>.yaml`という名前で保存しておく．Training Job 実行時に`yaml.safe_load`で dict 形式で load し，SageMaker Estimator に容易に渡せるためである．
+`train.py`上で`argparse`で指定しているハイパーパラメーターを`exp_<3桁の実験番号>.yaml`という名前で保存しておく．Training Job 実行時に`yaml.safe_load`で dict 形式で load し，SageMaker Estimator に容易に渡せるためである．経験上，実験毎に yaml ファイルを作成し，`exp001.yaml`, `exp002.yaml`,,,というようにパラメーターを管理することが多い．
 
 ### Training Job を実行し，作成されたモデル・CloudWatch Logs を自動ダウンロード
 
@@ -227,7 +227,7 @@ python train.py
 
 #### `run_job.py`の概要
 
-`scripts`ディレクトリ内部で`run_job.py`を実行することで，`src`ディレクトリ内の`train.py`が Training Job によって実行される．また，Training Job により作成されたモデル，実行ログ（CloudWatch Logs），実験情報（モデルの s3 uri, および job name）は自動ダウンロードされる．なお，Training Job の成否に関わらず，CloudWatch Logs のログはダウンロードするよう実装している．これにより，Training Job の実行に失敗した場合，迅速にエラー解析が可能になる．
+`scripts`ディレクトリ内部で`run_job.py`を実行することで，`src`ディレクトリ内の`train.py`が Training Job によって実行される．また，Training Job により作成されたモデル，実行ログ（CloudWatch Logs），実験情報（モデルの S3 URI, および job name）は自動ダウンロードされる．なお，Training Job の成否に関わらず，CloudWatch Logs のログはダウンロードするよう実装している．これにより，Training Job の実行に失敗した場合，迅速にエラー解析が可能になる．
 
 #### 実行方法
 
@@ -256,7 +256,7 @@ ACCOUNT_ID=XXXXXXXXXXXX
 REGION=ap-northeast-1
 DATASET_S3_URI=s3://sagemaker-$REGION-$ACCOUNT_ID/dataset
 INSTANCE_TYPE=ml.g4dn.xlarge
-OUT_DIR="../result/model"
+OUT_DIR=../result/model
 
 # if you use spot instance, add --use-spot
 python run_job.py --config $CONF_PATH \
@@ -277,8 +277,9 @@ bash run_job.sh 001
 
 #### Training Job の実行結果の保存先
 
-Training Job 実行に伴い作成される SageMaker Experiments Run 名，S3 へのモデルの保存先（S3 URI），およびローカルへのダウンロード先（ディレクトリ）を以下に示す．
+Training Job 実行に伴い作成される SageMaker Experiments 名および Run 名，S3 へのモデルの保存先（S3 URI），およびローカルへのダウンロード先（ディレクトリ）を以下に示す．大文字部分は`run_job.sh`内部で定義している変数値，yyyy-mm-dd-hh-mm-ss は実行時のタイムスタンプである．
 
+- SageMaker Experiments 名: `{EXP_NAME}`
 - SageMaker Experiments Run 名: `run-{yyyy-mm-dd-hh-mm-ss}`
 - モデル保存先（S3 URI）: `s3://sagemaker-{REGION}-{ACCOUNT_ID}/dataset/result-training-job-{self.exp_name}`
 - モデルダウンロード先（ローカル）: `../result/model/{yyyy-mm-dd-hh-mm-ss}`
@@ -291,15 +292,15 @@ Training Job 実行に伴い作成される SageMaker Experiments Run 名，S3 �
 
 ### Training Job の設定について
 
-- `run_job.py`では，Training Job で`SageMaker Managed Warm Pools`[^5-1]を利用する前提である．本機能は，Training Job を実行後，その際に使用したインスタンスを停止せずに保持しておき，待ち時間無く Training Job を再実行可能な機能である（保持中は課金されることに注意）．Warm pool を使用する場合，インスタンスタイプごとに上限緩和申請が必要である．
+- `scripts/run_job.py`では，デフォルトで Training Job で SageMaker Managed Warm Pools[^5-1]を利用する．本機能は，Training Job を実行後，その際に使用したインスタンスを停止せずに保持しておき，待ち時間無く Training Job を再実行可能な機能である（保持中は課金されることに注意）．Warm pool を使用する場合，インスタンスタイプごとに上限緩和申請が必要である．
 
-- `run_job.py`では，引数`--use-spot`を指定することで，Training Job でスポットインスタンス[^5-2]を利用することが可能である．スポットインスタンスを利用することで，70%〜90%のコスト削減を見込める．個人的な感覚では，待ち時間はオンデマンドインスタンスとほぼ変わらない印象である．Training Job 内部で複数回動作確認を行いたい場合は Warm Pool を，その他の場合はスポットインスタンスを利用することを推奨する（勿論，学習を止めたくない場合や待ち時間が長い場合はオンデマンドインスタンスを利用したほうが良い）．
+- `scripts/run_job.py`では，引数`--use-spot`を指定することで，Training Job でスポットインスタンス[^5-2]を利用することが可能である．スポットインスタンスを利用することで，70%〜90%のコスト削減を見込める．個人的な感覚では，待ち時間はオンデマンドインスタンスとほぼ変わらない印象である．Training Job 内部で複数回連続して動作確認を行いたい場合は Warm Pool を，その他の場合はスポットインスタンスを利用することを推奨する（勿論，学習を止めたくない場合や待ち時間が長い場合はオンデマンドインスタンスを利用したほうが良い）．
 
 ### Experiments について
 
 - 現時点（2024/03/31）では，SageMaker Experiments を利用したロギング結果は，SageMaker Studio Classic 上で確認できる[^5-3]．SageMaker Studio では確認できないことに注意されたい（同様に SageMaker Jumpstart，SageMaker MLOps Template も同様に Classic からのみ利用可能）．
 
-- SageMaker Studio Classic 上での Experiments の UI は以下である．以下では，`mnistv2`という Experiment の中に`run-2024-03-31-13-33-39`という Run が存在しており，その中で学習コード上のメトリクスが記録されていることを確認できる．
+- SageMaker Studio Classic 上での Experiments の UI を以下に示す．以下の例では，`mnistv2`という Experiment の中に`run-2024-03-31-13-33-39`という Run が存在しており，その中で学習コード上のメトリクスが記録されていることを確認できる．
 
   <img src="./imgs/sm_exp_1.png" width="800">
   <img src="./imgs/sm_exp_2.png" width="800">
@@ -314,7 +315,7 @@ Training Job 実行に伴い作成される SageMaker Experiments Run 名，S3 �
 botocore.errorfactory.ResourceLimitExceeded: An error occurred (ResourceLimitExceeded) when calling the AssociateTrialComponent operation: The account-level service limit 'Total number of trial components allowed in a single trial, excluding those automatically created by SageMaker' is 50 Trial Components, with current utilization of 0 Trial Components and a request delta of 51 Trial Components. Please use AWS Service Quotas to request an increase for this quota. If AWS Service Quotas is not available, contact AWS support to request an increase for this quota.
 ```
 
-- `train.py`内での SageMaker Experiments の実装について，本リポジトリ上では ExperimentsName 並びに RunName をトレーニングジョブ内のスクリプトに明示的に指定することで，`run_job.py`上で作成した Run を利用して記録するようにしているが，公式の実装例[^3-3]でも問題なく記録することが可能である．以下に具体的な実装例を示す．
+- `train.py`内での SageMaker Experiments の実装について，本リポジトリ上では ExperimentsName 並びに RunName をトレーニングジョブ内のスクリプトに明示的に指定することで，`run_job.py`上で作成した Run を利用して記録するようにしているが，公式の実装例[^3-3]のように，`boto3.session.Session`を利用する方法でも問題なく記録することが可能である．以下に具体的な実装例を示す．
 
 ```py
 import boto3
