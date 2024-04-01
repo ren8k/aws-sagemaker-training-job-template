@@ -150,12 +150,12 @@ parser.add_argument(
 Training Job が実行されるコンテナでは，指定した S3 上のデータセットが`/opt/ml/input/data/training`に転送され，コンテナ上の環境変数`SM_CHANNEL_TRAINING`にディレクトリパスが格納される仕様である．よって，コード上では，`args.data_dir`でデータセットのディレクトリパスにアクセスする．なお，Training Job では，他にも様々な環境変数が利用可能である[^2-1][^2-2]ので，実装の際には公式リポジトリなどを参考にされたい．
 
 <details>
-<summary>※`SM_CHANNEL_TRAINING`の補足説明</summary>
+<summary>※ SM_CHANNEL_TRAINING の補足説明</summary>
 <br/>
 
 SageMaker Training Job では，S3 上のデータを`/opt/ml/input/data/{channel_name}`に転送することが可能であり，そのディレクトリパスは環境変数`SM_CHANNEL_{channel_name}`に格納される．`{channel_name}`の命名規則はあるが，ユーザーが任意に決定することができる．[^2-3]
 
-例えば，学習スクリプト中で，ラベルデータ，training データ，validation データをそれぞれ独立したディレクトリから利用したい場合，以下の環境変数を用意することが可能である．
+例えば，学習スクリプト中で，ラベルデータ，training データ，validation データをそれぞれ独立したディレクトリから利用したい場合や，異なる S3 バケットからデータを転送したい場合，以下の環境変数を用意することが可能である．
 
 ```
 SM_CHANNEL_LABELS='/opt/ml/input/data/labels'
@@ -163,7 +163,7 @@ SM_CHANNEL_TRAINING='/opt/ml/input/data/training'
 SM_CHANNEL_VALIDATION='/opt/ml/input/data/validation'
 ```
 
-この場合，SageMaker Training Job を実行する際に，以下のように`fit`メソッドに S3 上のパスを指定する．以下の辞書のキー部分が`{channel_name}`となり，`/opt/ml/input/data/{channel_name}`にデータが転送される．
+この場合，SageMaker Training Job を実行する際に，以下のように`fit`メソッドに S3 上のパスを指定する．以下の辞書のキー部分が`{channel_name}`となり，`/opt/ml/input/data/{channel_name}`にデータが転送される．（本リポジトリでは，`scripts/run_job.py`の`run`メソッド内で`fit`メソッドが利用されている．）
 
 ```py
 estimator.fit({
