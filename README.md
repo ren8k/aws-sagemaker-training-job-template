@@ -2,7 +2,7 @@
 
 本リポジトリでは，SageMaker Training Job を利用した機械学習コードの実行と実験管理を容易に行うためのテンプレートとその利用手順を示す．テンプレート内では，[MNIST データを題材としたサンプルコード](https://github.com/Renya-Kujirada/aws-sagemaker-training-job-template/blob/main/src/train.py)を用意しており，ローカルで実行している機械学習コードを最小限の修正で SageMaker Training Job として実行し，実験管理を行うための方法を解説している．併せて，[サンプルコードを SageMaker Studio などでクイックに実行するための手順書](https://github.com/Renya-Kujirada/aws-sagemaker-training-job-template/blob/main/docs/quickstart.md)も整備しているため参照されたい．
 
-本テンプレートは，筆者が実務や Kaggle などでの SageMaker の利用経験を基に作成しており，ローカルで開発した学習コードをスムーズに SageMaker Training Job で利用できるようにすることを主眼としている．また，ローカル上または SageMaker Training Job 上どちらに対しても同一の学習コードで動作可能な状態にする方法についても述べている．
+本テンプレートは，筆者が実務や Kaggle での SageMaker の利用経験を基に作成しており，ローカルで開発した学習コードをスムーズに SageMaker Training Job で利用できるようにすることを主眼としている．また，ローカル上または SageMaker Training Job 上どちらに対しても同一の学習コードで動作可能な状態にする方法についても述べている．
 
 ## TL;DR <!-- omit in toc -->
 
@@ -372,5 +372,5 @@ with load_run(sagemaker_session=session) as run:
 [^4-2]: [Choose the best data source for your Amazon SageMaker training job](https://aws.amazon.com/jp/blogs/machine-learning/choose-the-best-data-source-for-your-amazon-sagemaker-training-job/)
 [^5-1]: [Train Using SageMaker Managed Warm Pools](https://docs.aws.amazon.com/sagemaker/latest/dg/train-warm-pools.html)
 [^5-2]: [Use Managed Spot Training in Amazon SageMaker](https://docs.aws.amazon.com/ja_jp/sagemaker/latest/dg/model-managed-spot-training.html)
-[^5-3]: [https://docs.aws.amazon.com/sagemaker/latest/dg/experiments.html](https://docs.aws.amazon.com/ja_jp/sagemaker/latest/dg/experiments.html)
+[^5-3]: [Manage Machine Learning with Amazon SageMaker Experiments](https://docs.aws.amazon.com/ja_jp/sagemaker/latest/dg/experiments.html)
 [^5-4]: [Amazon SageMaker endpoints and quotas](https://docs.aws.amazon.com/general/latest/gr/sagemaker.html)
