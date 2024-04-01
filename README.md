@@ -149,6 +149,33 @@ parser.add_argument(
 
 Training Job が実行されるコンテナでは，指定した S3 上のデータセットが`/opt/ml/input/data/training`に転送され，コンテナ上の環境変数`SM_CHANNEL_TRAINING`にディレクトリパスが格納される仕様である．よって，コード上では，`args.data_dir`でデータセットのディレクトリパスにアクセスする．なお，Training Job では，他にも様々な環境変数が利用可能である[^2-1][^2-2]ので，実装の際には公式リポジトリなどを参考にされたい．
 
+<details>
+<summary>※ SM_CHANNEL_TRAINING の補足説明</summary>
+<br/>
+
+SageMaker Training Job では，S3 上のデータを`/opt/ml/input/data/{channel_name}`に転送することが可能であり，そのディレクトリパスは環境変数`SM_CHANNEL_{channel_name}`に格納される．`{channel_name}`の命名規則はあるが，ユーザーが任意に決定することができる．[^2-3]
+
+例えば，学習スクリプト中で，ラベルデータ，training データ，validation データをそれぞれ独立したディレクトリから利用したい場合や，異なる S3 バケットからデータを転送したい場合，以下の環境変数を用意することが可能である．
+
+```
+SM_CHANNEL_LABELS='/opt/ml/input/data/labels'
+SM_CHANNEL_TRAINING='/opt/ml/input/data/training'
+SM_CHANNEL_VALIDATION='/opt/ml/input/data/validation'
+```
+
+この場合，SageMaker Training Job を実行する際に，以下のように`fit`メソッドに S3 上のパスを指定する．以下の辞書のキー部分が`{channel_name}`となり，`/opt/ml/input/data/{channel_name}`にデータが転送される．（本リポジトリでは，`scripts/run_job.py`の`run`メソッド内で`fit`メソッドが利用されている．）
+
+```py
+estimator.fit({
+    "labels": "s3://<bucket>/<prefix>/labels",
+    "train": "s3://<bucket>/<prefix>/training",
+    "validation": "s3://<bucket>/<prefix>/validation"
+    })
+```
+
+</details>
+<br/>
+
 #### アーティファクト（モデル，メトリクス等）の保存先の設定
 
 `train.py`上では，`argparse`を利用して，モデルやその他出力物の保存先を以下のように定義することを推奨する．
@@ -298,14 +325,14 @@ Training Job 実行に伴い作成される SageMaker Experiments 名および R
 
 ### Experiments について
 
-- 現時点（2024/03/31）では，SageMaker Experiments を利用したロギング結果は，SageMaker Studio Classic 上で確認できる[^5-3]．SageMaker Studio では確認できないことに注意されたい（同様に SageMaker Jumpstart，SageMaker MLOps Template も同様に Classic からのみ利用可能）．
+- 執筆時点（2024/03/31）では，SageMaker Experiments を利用したロギング結果は，SageMaker Studio Classic 上で確認できる[^5-3]．SageMaker Studio では確認できないことに注意されたい（同様に SageMaker Jumpstart，SageMaker MLOps Template も同様に Classic からのみ利用可能）．
 
 - SageMaker Studio Classic 上での Experiments の UI を以下に示す．以下の例では，`mnistv2`という Experiment の中に`run-2024-03-31-13-33-39`という Run が存在しており，その中で学習コード上のメトリクスが記録されていることを確認できる．
 
   <img src="./assets/sm_exp_1.png" width="800">
   <img src="./assets/sm_exp_2.png" width="800">
 
-- 現時点（2024/03/31）では，`run_job.py`上で作成した Run 上に`train.py`上のメトリクスを記録できない．`train.py`上で別の Run が作成され，その中にメトリクスが保存されることを確認している．（つまり，`run_job.py`上で作成される Run には以下のようにハイパラやインスタンス情報が，`train.py`上で作成される Run にはメトリクスが保存される．この事象は仕様なのか現在サポートに問い合わせているが，恐らく改善されるのではないかと思っている．）
+- 執筆時点（2024/03/31）では，`run_job.py`上で作成した Run 上に`train.py`上のメトリクスを記録できない．`train.py`上で別の Run が作成され，その中にメトリクスが保存されることを確認している．（つまり，`run_job.py`上で作成される Run には以下のようにハイパラやインスタンス情報が，`train.py`上で作成される Run にはメトリクスが保存される．この事象は仕様なのか現在サポートに問い合わせているが，恐らく改善されるのではないかと思っている．）
 
   <img src="./assets/sm_exp_3.png" width="800">
 
@@ -336,6 +363,7 @@ with load_run(sagemaker_session=session) as run:
 [^1-4]: [sagemaker/sagemaker-experiments/pytorch_mnist/pytorch_mnist.ipynb](https://github.com/aws-samples/aws-ml-jp/blob/main/sagemaker/sagemaker-experiments/pytorch_mnist/pytorch_mnist.ipynb)
 [^2-1]: [ENVIRONMENT_VARIABLES.md ](https://github.com/aws/sagemaker-training-toolkit/blob/master/ENVIRONMENT_VARIABLES.md)
 [^2-2]: [SageMaker Training Toolkit - ENVIRONMENT_VARIABLES.md 日本語版](https://zenn.dev/kmotohas/articles/7bfe313eab01ea)
+[^2-3]: [Amazon Sagemaker API Reference - Channel](https://docs.aws.amazon.com/sagemaker/latest/APIReference/API_Channel.html)
 [^3-1]: [Amazon SageMaker Experiments > Experiments](https://sagemaker.readthedocs.io/en/stable/experiments/sagemaker.experiments.html)
 [^3-2]: [Next generation Amazon SageMaker Experiments – Organize, track, and compare your machine learning trainings at scale](https://aws.amazon.com/jp/blogs/machine-learning/next-generation-amazon-sagemaker-experiments-organize-track-and-compare-your-machine-learning-trainings-at-scale/)
 [^3-3]: [Track an experiment while training a Pytorch model with a SageMaker Training Job](https://sagemaker-examples.readthedocs.io/en/latest/sagemaker-experiments/sagemaker_job_tracking/pytorch_script_mode_training_job.html)
