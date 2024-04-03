@@ -163,14 +163,14 @@ SM_CHANNEL_TRAINING='/opt/ml/input/data/training'
 SM_CHANNEL_VALIDATION='/opt/ml/input/data/validation'
 ```
 
-この場合，SageMaker Training Job を実行する際に，以下のように`fit`メソッドに S3 上のパスを指定する．以下の辞書のキー部分が`{channel_name}`となり，`/opt/ml/input/data/{channel_name}`にデータが転送される．（本リポジトリでは，`scripts/run_job.py`の`run`メソッド内で`fit`メソッドが利用されている．）
+この場合，SageMaker Training Job を実行する際に，以下のように`fit`メソッドに S3 上のパスを指定する．以下の辞書の key が`{channel_name}`となり，value 部の S3 上のデータが`/opt/ml/input/data/{channel_name}`に転送される．（本リポジトリでは，`scripts/run_job.py`の`run`メソッド内で`fit`メソッドが利用されている．）
 
 ```py
 estimator.fit({
     "labels": "s3://<bucket>/<prefix>/labels",
-    "train": "s3://<bucket>/<prefix>/training",
+    "training": "s3://<bucket>/<prefix>/training",
     "validation": "s3://<bucket>/<prefix>/validation"
-    })
+})
 ```
 
 </details>
