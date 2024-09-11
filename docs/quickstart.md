@@ -21,7 +21,7 @@
 
 ## 環境準備
 
-EC2 上で VSCode Dev Container を起動，もしくは sagemaker>=2.213.0 がインストールされた ML 実行環境を構築する．EC2 上で Dev Container を利用する手順は，[VSCode Dev Containers を利用した AWS EC2 上での開発環境構築手順](https://github.com/Renya-Kujirada/aws-ec2-devkit-vscode)を参照されたい．Dev Container では以下のイメージを利用している．
+EC2 上で VSCode Dev Container を起動，もしくは SageMaker Studio など，sagemaker>=2.213.0 がインストールされた ML 実行環境を構築する．EC2 上で Dev Container を利用する手順は，[VSCode Dev Containers を利用した AWS EC2 上での開発環境構築手順](https://github.com/Renya-Kujirada/aws-ec2-devkit-vscode)を参照されたい．Dev Container では以下のイメージを利用している．
 
 ```
 763104351884.dkr.ecr.ap-northeast-1.amazonaws.com/pytorch-training:2.1.0-gpu-py310-cu121-ubuntu20.04-sagemaker
