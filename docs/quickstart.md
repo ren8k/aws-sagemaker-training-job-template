@@ -61,10 +61,10 @@ bash train.sh
 
 ## Training Job の実行
 
-`scripts`ディレクトリに移動し，`run_job.sh`の 10 行目に，自身の AWS アカウント ID を記載する．その後，以下のコマンドを実行する．これにより，`run_job.py`が実行され，SageMaker Training Job として学習スクリプトを実行できる．アーティファクトやログは`result/model`ディレクトリに自動ダウンロードされる．
+`scripts`ディレクトリに移動し，`run_job.sh`の 10 行目に，自身の AWS アカウント ID を記載する．その後，以下のコマンドを実行する．ここで，コマンド中の引数 `001`は，`config`ディレクトリの`exp_<3 桁の実験番号>.yaml`のファイル名の末尾の番号である．これにより，`run_job.py`が実行され，SageMaker Training Job として学習スクリプトを実行できる．アーティファクトやログは`result/model`ディレクトリに自動ダウンロードされる．
 
 ```sh
-bash run_job.sh
+bash run_job.sh 001
 ```
 
 ## その他参考になるブログ
