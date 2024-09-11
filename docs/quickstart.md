@@ -21,7 +21,7 @@
 
 ## 環境準備
 
-EC2 上で VSCode Dev Container を起動，もしくは sagemaker>=2.213.0 がインストールされた ML 実行環境を構築する．EC2 上で Dev Container を利用する手順は，[VSCode Dev Containers を利用した AWS EC2 上での開発環境構築手順](https://github.com/Renya-Kujirada/aws-ec2-devkit-vscode)を参照されたい．Dev Container では以下のイメージを利用している．
+EC2 上で VSCode Dev Container を起動，もしくは SageMaker Studio など，sagemaker>=2.213.0 がインストールされた ML 実行環境を構築する．EC2 上で Dev Container を利用する手順は，[VSCode Dev Containers を利用した AWS EC2 上での開発環境構築手順](https://github.com/Renya-Kujirada/aws-ec2-devkit-vscode)を参照されたい．Dev Container では以下のイメージを利用している．
 
 ```
 763104351884.dkr.ecr.ap-northeast-1.amazonaws.com/pytorch-training:2.1.0-gpu-py310-cu121-ubuntu20.04-sagemaker
@@ -61,10 +61,10 @@ bash train.sh
 
 ## Training Job の実行
 
-`scripts`ディレクトリに移動し，`run_job.sh`の 10 行目に，自身の AWS アカウント ID を記載する．その後，以下のコマンドを実行する．これにより，`run_job.py`が実行され，SageMaker Training Job として学習スクリプトを実行できる．アーティファクトやログは`result/model`ディレクトリに自動ダウンロードされる．
+`scripts`ディレクトリに移動し，`run_job.sh`の 10 行目に，自身の AWS アカウント ID を記載する．その後，以下のコマンドを実行する．ここで，コマンド中の引数 `001`は，`config`ディレクトリの`exp_<3 桁の実験番号>.yaml`のファイル名の末尾の番号である．これにより，`run_job.py`が実行され，SageMaker Training Job として学習スクリプトを実行できる．アーティファクトやログは`result/model`ディレクトリに自動ダウンロードされる．
 
 ```sh
-bash run_job.sh
+bash run_job.sh 001
 ```
 
 ## その他参考になるブログ
